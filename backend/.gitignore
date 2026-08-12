@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Firebase service account (contains private key — never commit)
+config/*-firebase-adminsdk-*.json
+config/firebase-service-account.json
+
+# Build output
+dist/
+build/
+
+# Uploaded files (transient — streamed to Cloudinary)
+uploads/*
+!uploads/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

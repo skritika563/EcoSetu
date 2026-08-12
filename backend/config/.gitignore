@@ -1,0 +1,10 @@
+node_modules/
+.env
+config/firebase-service-account.json
+
+dist/
+build/
+
+.vscode/
+
+.DS_Store
