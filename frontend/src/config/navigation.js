@@ -1,0 +1,110 @@
+/**
+ * Navigation configuration — one source of truth for authenticated navigation.
+ *
+ * Consumed by the desktop Navbar, the mobile drawer and the mobile
+ * BottomNavigation, so the three can never drift apart.
+ *
+ * `available: false` marks a destination whose module has not been built yet.
+ * Those items are shown (the product needs to communicate its shape) but they
+ * do not navigate — they surface a "coming soon" toast instead of a dead route.
+ * Flip the flag to true and add the route when the module lands.
+ */
+
+import {
+  Home,
+  Truck,
+  Store,
+  Gift,
+  Megaphone,
+  ClipboardList,
+  Wallet,
+  ScanLine,
+  Package,
+  Boxes,
+  CalendarPlus,
+  BarChart3,
+  MapPin,
+} from "lucide-react";
+
+/* ─── Primary navigation ─────────────────────────────────────────────────── */
+
+/** Household / organization share the same core product surface. */
+const GENERAL_NAV = [
+  { key: "home", label: "Home", to: "/", icon: Home, available: true },
+  { key: "pickups", label: "Pickups", to: "/pickups", icon: Truck, available: false },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
+  { key: "rewards", label: "Rewards", to: "/rewards", icon: Gift, available: false },
+];
+
+/** Organizations additionally run collection drives. */
+const ORGANIZATION_NAV = [
+  ...GENERAL_NAV,
+  { key: "campaigns", label: "Campaigns", to: "/campaigns", icon: Megaphone, available: false },
+];
+
+/** Collectors get an operational surface rather than a consumer one. */
+const COLLECTOR_NAV = [
+  { key: "home", label: "Home", to: "/", icon: Home, available: true },
+  { key: "jobs", label: "Jobs", to: "/jobs", icon: ClipboardList, available: false },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
+  { key: "earnings", label: "Earnings", to: "/earnings", icon: Wallet, available: false },
+];
+
+/**
+ * Primary nav for a role.
+ * Admin deliberately returns [] — admins are not general users and get their
+ * own surface in the Admin module.
+ */
+export const getPrimaryNav = (role) => {
+  switch (role) {
+    case "household":
+      return GENERAL_NAV;
+    case "organization":
+      return ORGANIZATION_NAV;
+    case "collector":
+      return COLLECTOR_NAV;
+    default:
+      return [];
+  }
+};
+
+/* ─── Quick actions (dashboard) ──────────────────────────────────────────── */
+
+/**
+ * `accent` picks the hover gradient — blue, purple, orange, teal (see
+ * components/home/QuickActions.jsx). Four distinct hues so a row of tiles is
+ * scannable at a glance; the page background is never used.
+ */
+const HOUSEHOLD_ACTIONS = [
+  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: false, accent: "blue" },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
+  { key: "campaigns", label: "Nearby Campaigns", to: "/campaigns", icon: MapPin, available: false, accent: "orange" },
+  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "teal" },
+];
+
+const ORGANIZATION_ACTIONS = [
+  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: false, accent: "blue" },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
+  { key: "create-campaign", label: "Create Campaign", to: "/campaigns/new", icon: Megaphone, available: false, accent: "orange" },
+  { key: "impact", label: "View Impact", to: "/rewards", icon: BarChart3, available: false, accent: "teal" },
+];
+
+const COLLECTOR_ACTIONS = [
+  { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: false, accent: "blue" },
+  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "purple" },
+  { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: false, accent: "orange" },
+  { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: false, accent: "teal" },
+];
+
+export const getQuickActions = (role) => {
+  switch (role) {
+    case "household":
+      return HOUSEHOLD_ACTIONS;
+    case "organization":
+      return ORGANIZATION_ACTIONS;
+    case "collector":
+      return COLLECTOR_ACTIONS;
+    default:
+      return [];
+  }
+};

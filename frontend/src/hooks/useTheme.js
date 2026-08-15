@@ -1,38 +1,10 @@
 /**
- * useTheme — manages light/dark mode.
+ * useTheme — re-exported from ThemeContext.
  *
- * Reads from localStorage. Defaults to system preference if no stored value.
- * Toggles the "dark" class on <html>.
+ * The implementation moved to contexts/ThemeContext.jsx so every toggle shares
+ * one source of truth. This module is kept so existing
+ * `import { useTheme } from "@/hooks/useTheme"` paths keep working; prefer
+ * importing from "@/contexts/ThemeContext" in new code.
  */
-import { useState, useEffect } from "react";
 
-const STORAGE_KEY = "ecosetu-theme";
-
-const getSystemTheme = () =>
-  window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-
-const applyTheme = (theme) => {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-};
-
-export const useTheme = () => {
-  const [theme, setTheme] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "dark" || stored === "light" ? stored : getSystemTheme();
-  });
-
-  useEffect(() => {
-    applyTheme(theme);
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
-
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-
-  return { theme, toggleTheme, isDark: theme === "dark" };
-};
+export { useTheme } from "@/contexts/ThemeContext";

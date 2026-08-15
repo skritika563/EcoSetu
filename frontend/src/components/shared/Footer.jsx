@@ -12,6 +12,8 @@
 import { Link } from "react-router-dom";
 import { Leaf, Recycle, TreePine, Heart } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import BrandLogo from "@/components/shared/BrandLogo";
+import { cn } from "@/lib/utils";
 
 const PLATFORM_LINKS = [
   { label: "Schedule Pickup", href: "/household" },
@@ -39,9 +41,9 @@ const STATS = [
   { icon: Leaf, value: "800+", label: "Happy Households" },
 ];
 
-const Footer = () => {
+const Footer = ({ className }) => {
   return (
-    <footer id="site-footer" className="mt-auto border-t border-border bg-card">
+    <footer id="site-footer" className={cn("mt-auto border-t border-border bg-card", className)}>
       {/* Stats ribbon */}
       <div className="bg-primary/5 border-b border-border">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5">
@@ -66,14 +68,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4 w-fit group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm transition-transform duration-200 group-hover:scale-105">
-                <Leaf className="h-4 w-4 text-primary-foreground" strokeWidth={2.2} />
-              </div>
-              <span className="font-heading text-xl font-bold tracking-tight">
-                Eco<span className="text-primary">Setu</span>
-              </span>
-            </Link>
+            <BrandLogo className="mb-4 w-fit" />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
               Connecting households, collectors, and organizations to build a cleaner, circular economy across India.
             </p>
@@ -106,12 +101,12 @@ const Footer = () => {
             <ul className="space-y-2.5">
               {COMMUNITY_LINKS.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
+                  <Link
+                    to={link.href}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

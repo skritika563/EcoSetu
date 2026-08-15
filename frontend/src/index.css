@@ -2,7 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
-@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/rubik";
+
+/* ─── Tailwind v4 Theme Configuration ──────────────────────────────────────── */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Rubik Variable", ui-sans-serif, system-ui, sans-serif;
+}
 
 /* ─── Dark mode via class strategy ─────────────────────────────────────────── */
 @custom-variant dark (&:is(.dark *));
@@ -21,6 +27,28 @@
   --ecosetu-muted:         #6B7A6D;
   --ecosetu-text:          #1A2E20;
   --ecosetu-text-muted:    #5E6E60;
+
+  /* ── Quick-action accents ───────────────────────────────────
+     Hover gradients for the dashboard action tiles: blue, purple, orange and
+     teal. Soft pastel washes rather than saturated fills — they should feel
+     like a gentle tint next to the cream/forest brand, not compete with it.
+     Each accent carries its own deep foreground so labels stay readable.
+     Redefined under .dark, where pastels would glare. */
+  --action-blue-from:     #DCEAFE;
+  --action-blue-to:       #E3E6FD;
+  --action-blue-fg:       #1E40AF;
+
+  --action-purple-from:   #EEE9FE;
+  --action-purple-to:     #F7E9FD;
+  --action-purple-fg:     #6B21A8;
+
+  --action-orange-from:   #FFE7DA;
+  --action-orange-to:     #FFD3C4;
+  --action-orange-fg:     #8A4520;
+
+  --action-teal-from:     #D8F5E7;
+  --action-teal-to:       #D2F2EC;
+  --action-teal-fg:       #115E59;
 
   /* ── shadcn/Tailwind token overrides ───────────────────────── */
   --background:            oklch(0.993 0.016 100);   /* warm cream ≈ #FEFEE3 */
@@ -118,12 +146,30 @@
   --sidebar-accent-foreground: oklch(0.92 0.01 100);
   --sidebar-border:        oklch(1 0 0 / 12%);
   --sidebar-ring:          oklch(0.63 0.12 152);
+
+  /* Quick-action accents — muted, low-lightness versions of the pastels so
+     the tiles read as a soft tint on dark rather than a glowing block. */
+  --action-blue-from:     #1B2E4D;
+  --action-blue-to:       #212A55;
+  --action-blue-fg:       #BFD8FF;
+
+  --action-purple-from:   #2A2350;
+  --action-purple-to:     #382353;
+  --action-purple-fg:     #E4D2FF;
+
+  --action-orange-from:   #452A1B;
+  --action-orange-to:     #4E2F20;
+  --action-orange-fg:     #FFD3BE;
+
+  --action-teal-from:     #10322F;
+  --action-teal-to:       #12332A;
+  --action-teal-fg:       #A9EBD3;
 }
 
 /* ─── Tailwind theme mapping ────────────────────────────────────────────────── */
 @theme inline {
   --font-sans:    'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Rubik Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono:    ui-monospace, 'Cascadia Code', Consolas, monospace;
 
   /* Brand CSS vars exposed as Tailwind colors */
@@ -132,6 +178,20 @@
   --color-ecosetu-accent:     var(--ecosetu-accent);
   --color-ecosetu-orange:     var(--ecosetu-orange);
   --color-ecosetu-bg:         var(--ecosetu-bg);
+
+  /* Quick-action accent gradients (theme-aware — see :root and .dark) */
+  --color-action-blue-from:   var(--action-blue-from);
+  --color-action-blue-to:     var(--action-blue-to);
+  --color-action-blue-fg:     var(--action-blue-fg);
+  --color-action-purple-from: var(--action-purple-from);
+  --color-action-purple-to:   var(--action-purple-to);
+  --color-action-purple-fg:   var(--action-purple-fg);
+  --color-action-orange-from: var(--action-orange-from);
+  --color-action-orange-to:   var(--action-orange-to);
+  --color-action-orange-fg:   var(--action-orange-fg);
+  --color-action-teal-from:   var(--action-teal-from);
+  --color-action-teal-to:     var(--action-teal-to);
+  --color-action-teal-fg:     var(--action-teal-fg);
 
   /* shadcn tokens */
   --color-background:         var(--background);
@@ -219,11 +279,28 @@
   );
 }
 
+.dark .ecosetu-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.35 0.11 152) 0%,
+    oklch(0.45 0.09 152) 50%,
+    oklch(0.55 0.12 72) 100%
+  );
+}
+
 .ecosetu-gradient-subtle {
   background: linear-gradient(
     135deg,
     oklch(0.95 0.02 152) 0%,
     oklch(0.993 0.016 100) 100%
+  );
+}
+
+.dark .ecosetu-gradient-subtle {
+  background: linear-gradient(
+    135deg,
+    oklch(0.20 0.02 148) 0%,
+    oklch(0.14 0.02 148) 100%
   );
 }
 

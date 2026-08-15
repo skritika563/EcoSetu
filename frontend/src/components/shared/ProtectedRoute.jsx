@@ -7,23 +7,19 @@
  * Role comes from MongoDB (via backend), never from frontend state directly.
  *
  * Decision tree:
- *   Loading?              → Show branded PageLoader
+ *   Initializing?           → Show branded PageLoader
  *   Firebase + needsProfile → redirect /complete-profile
- *   Not authenticated?    → redirect /login (saves return URL)
- *   Wrong role?           → redirect user's own dashboard
- *   ✅ Authorized          → render Outlet or children
+ *   Firebase + sessionError → show recovery screen (retry / sign out)
+ *   Not authenticated?      → redirect /login (saves return URL)
+ *   Wrong role?             → redirect user's own dashboard
+ *   ✅ Authorized            → render Outlet or children
  */
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { getRoleHome } from "@/config/roles";
 import PageLoader from "@/components/shared/PageLoader";
-
-const ROLE_HOME_ROUTES = {
-  household:    "/household",
-  organization: "/organization",
-  collector:    "/collector",
-  admin:        "/admin",
-};
+import SessionErrorScreen from "@/components/shared/SessionErrorScreen";
 
 /**
  * @param {Object} props
@@ -32,11 +28,18 @@ const ROLE_HOME_ROUTES = {
  * @param {React.ReactNode} [props.children] - Render children instead of Outlet.
  */
 const ProtectedRoute = ({ allowedRoles, children }) => {
-  const { role, isAuthenticated, isFirebaseAuthenticated, needsProfile, loading } = useAuth();
+  const {
+    role,
+    isAuthenticated,
+    isFirebaseAuthenticated,
+    needsProfile,
+    initializing,
+    sessionError,
+  } = useAuth();
   const location = useLocation();
 
-  // ── 1. Auth loading ──────────────────────────────────────────────────────
-  if (loading) {
+  // ── 1. Restoring the session on load ─────────────────────────────────────
+  if (initializing) {
     return <PageLoader message="Loading your session…" />;
   }
 
@@ -45,20 +48,25 @@ const ProtectedRoute = ({ allowedRoles, children }) => {
     return <Navigate to="/complete-profile" state={{ from: location.pathname }} replace />;
   }
 
-  // ── 3. Not authenticated ─────────────────────────────────────────────────
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  // ── 3. Session alive but profile unavailable — offer retry / sign out
+  //       instead of silently bouncing to the login page ───────────────────
+  if (isFirebaseAuthenticated && sessionError) {
+    return <SessionErrorScreen />;
   }
 
-  // ── 4. Role check ────────────────────────────────────────────────────────
+  // ── 4. Not authenticated ─────────────────────────────────────────────────
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" state={{ from: location.pathname }} replace />;
+  }
+
+  // ── 5. Role check ────────────────────────────────────────────────────────
   if (allowedRoles && allowedRoles.length > 0) {
     if (!allowedRoles.includes(role)) {
-      const homeRoute = ROLE_HOME_ROUTES[role] || "/";
-      return <Navigate to={homeRoute} replace />;
+      return <Navigate to={getRoleHome(role)} replace />;
     }
   }
 
-  // ── 5. Authorized ────────────────────────────────────────────────────────
+  // ── 6. Authorized ────────────────────────────────────────────────────────
   return children ?? <Outlet />;
 };
 
