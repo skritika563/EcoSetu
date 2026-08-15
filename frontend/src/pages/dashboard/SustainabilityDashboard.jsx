@@ -1,45 +1,105 @@
 /**
- * SustainabilityDashboard — the impact detail surface, reachable from the
- * profile menu.
+ * SustainabilityDashboard — the user's environmental impact and journey.
  *
- * Home answers "what matters right now?"; this page answers "what have I
- * achieved?". The headline impact metrics live here rather than on Home so the
- * dashboard stays action-focused.
+ * Home answers "what matters to me right now?".
+ * This page answers "what impact have I made, and how has it grown?".
  *
- * Available to every signed-in role — collectors see their own collection
- * impact alongside households and organizations.
+ * One page serves every role. Household, NGO, school, university and collector
+ * differ in copy and which metrics lead — never in structure, because they are
+ * the same product with different content.
+ *
+ * All numbers derive from one mock source (data/sustainabilityData.js) through
+ * sustainabilityService, so nothing on the page can contradict anything else.
  */
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sprout } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useSustainabilityData } from "@/hooks/useSustainabilityData";
 import { getOrganizationLabel } from "@/config/domain";
+import { formatNumber } from "@/lib/format";
 
 import PageContainer from "@/components/common/PageContainer";
 import ErrorState from "@/components/common/ErrorState";
 import EmptyState from "@/components/common/EmptyState";
-import { StatsSkeleton } from "@/components/common/SectionSkeleton";
+import { ListSkeleton, StatsSkeleton } from "@/components/common/SectionSkeleton";
 import { Button } from "@/components/ui/button";
-import ImpactSummary from "@/components/home/ImpactSummary";
-import { Leaf } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
+import ImpactSummary from "@/components/home/ImpactSummary";
+import CollectionBreakdown from "@/components/home/CollectionBreakdown";
+import RecentActivity from "@/components/home/RecentActivity";
+import EcoJourney from "@/components/sustainability/EcoJourney";
+import ImpactChart from "@/components/sustainability/ImpactChart";
+import EcoStreak from "@/components/sustainability/EcoStreak";
+import AchievementGrid from "@/components/sustainability/AchievementGrid";
+
+/* ─── Role-specific copy ─────────────────────────────────────────────────── */
+const getCopy = (role, user) => {
+  const name = user?.name?.trim();
+
+  if (role === "organization") {
+    const label = getOrganizationLabel(user?.organizationType);
+    return {
+      title: name ? `${name} Sustainability Journey` : "Your Sustainability Journey",
+      subtitle: `See how your ${label.sentenceNoun}'s everyday actions are creating a measurable impact.`,
+      breakdownTitle: "What your community has recycled",
+      activityTitle: "Recent eco activity",
+    };
+  }
+
+  if (role === "collector") {
+    return {
+      title: "Your Collection Impact 🌱",
+      subtitle: "See how much material you've kept in circulation and out of landfill.",
+      breakdownTitle: "What you've collected",
+      activityTitle: "Recent eco activity",
+    };
+  }
+
+  return {
+    title: "Your Sustainability Journey 🌱",
+    subtitle: "See how your everyday actions are creating a measurable impact.",
+    breakdownTitle: "What you've recycled",
+    activityTitle: "Recent eco activity",
+  };
+};
+
+/* ─── Loading skeleton ───────────────────────────────────────────────────── */
+const DashboardSkeleton = () => (
+  <div className="space-y-8">
+    <StatsSkeleton />
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="mt-2 h-4 w-64 max-w-full" />
+      <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6">
+        {Array.from({ length: 12 }, (_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+        ))}
+      </div>
+    </div>
+    <div className="grid gap-6 lg:grid-cols-3">
+      <Skeleton className="h-72 rounded-2xl lg:col-span-2" />
+      <ListSkeleton count={3} />
+    </div>
+  </div>
+);
+
+/* ─── Page ───────────────────────────────────────────────────────────────── */
 const SustainabilityDashboard = () => {
   const { user, role } = useAuth();
-  const { data, loading, error, refetch } = useDashboardData();
+  const { data, loading, error, refetch } = useSustainabilityData();
 
+  const copy = getCopy(role, user);
   const isOrganization = role === "organization";
-  const orgLabel = getOrganizationLabel(user?.organizationType);
-
-  const subtitle = isOrganization
-    ? `The environmental impact your ${orgLabel.sentenceNoun} has made through EcoSetu.`
-    : role === "collector"
-      ? "The environmental impact of everything you've collected."
-      : "The environmental impact of everything you've recycled.";
+  const summary = data?.summary;
+  const hasActivity = (summary?.activities ?? 0) > 0;
 
   return (
     <PageContainer className="space-y-8 py-6 sm:py-8">
+      {/* ─── Header ───────────────────────────────────────────────────── */}
       <header className="min-w-0">
         <Button
           variant="ghost"
@@ -54,27 +114,83 @@ const SustainabilityDashboard = () => {
         </Button>
 
         <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-          Sustainability dashboard
+          {copy.title}
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.subtitle}</p>
+
+        {!loading && !error && hasActivity && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            You&apos;ve made an impact on{" "}
+            <span className="font-medium text-foreground">
+              {formatNumber(summary.activeDays)} days
+            </span>{" "}
+            this year. Keep growing your EcoSetu journey.
+          </p>
+        )}
       </header>
 
       {error ? (
         <ErrorState
-          title="We couldn't load your impact"
-          description={error}
+          title="We couldn't load your sustainability data"
+          description="Something went wrong while loading your impact history."
           onRetry={refetch}
         />
       ) : loading ? (
-        <StatsSkeleton />
-      ) : data?.impact ? (
-        <ImpactSummary impact={data.impact} isOrganization={isOrganization} />
+        <DashboardSkeleton />
+      ) : !hasActivity ? (
+        /* ─── Empty state: brand-new account ─────────────────────────── */
+        <div className="space-y-8">
+          <EmptyState
+            icon={Sprout}
+            title="Your Eco Journey Starts Here 🌱"
+            description="You haven't recorded any sustainability activity yet. Complete your first pickup or join a campaign to start growing your EcoSetu journey."
+            className="py-14"
+          />
+          {/* The garden still renders — empty planters and a bare sapling show
+              the user exactly what their actions will grow. */}
+          <TooltipProvider>
+            <EcoJourney months={data?.months ?? []} summary={summary} />
+          </TooltipProvider>
+        </div>
       ) : (
-        <EmptyState
-          icon={Leaf}
-          title="No impact recorded yet"
-          description="Complete your first pickup and your recycling impact will start showing up here."
-        />
+        <TooltipProvider delayDuration={150}>
+          <div className="space-y-8">
+            {/* ─── Impact overview ─────────────────────────────────── */}
+            <section aria-label="Impact overview">
+              <ImpactSummary
+                impact={summary}
+                isOrganization={isOrganization}
+                metrics={["recycled", "co2", "points", "activities"]}
+              />
+            </section>
+
+            {/* ─── Signature: plants + tree ────────────────────────── */}
+            <EcoJourney months={data.months} summary={summary} />
+
+            {/* ─── Trends + recycling mix ──────────────────────────── */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <ImpactChart months={data.months} className="lg:col-span-2" />
+              <CollectionBreakdown
+                data={data.categories}
+                title={copy.breakdownTitle}
+                description={`${formatNumber(summary.scrapRecycledKg, { decimals: 1 })} kg across ${data.categories.length} categories`}
+              />
+            </div>
+
+            {/* ─── Streak + achievements ───────────────────────────── */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <EcoStreak streak={data.streak} />
+              <AchievementGrid achievements={data.achievements} className="lg:col-span-2" />
+            </div>
+
+            {/* ─── Recent eco activity ─────────────────────────────── */}
+            <RecentActivity
+              activity={data.activity}
+              title={copy.activityTitle}
+              description="The latest actions feeding your garden"
+            />
+          </div>
+        </TooltipProvider>
       )}
     </PageContainer>
   );

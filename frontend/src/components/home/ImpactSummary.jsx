@@ -1,21 +1,31 @@
 /**
- * ImpactSummary — four headline metrics with subtle count-up animation.
+ * ImpactSummary — headline impact metrics with subtle count-up animation.
  *
- * Summary only: the full impact breakdown belongs to the Rewards module.
- * The same component serves households and organizations — only the copy
- * shifts, never the structure.
+ * The same component serves households, organizations and collectors — only
+ * the copy shifts, never the structure.
+ *
+ * `metrics` selects which tiles to show, so the Sustainability Dashboard can
+ * lead with eco activity while other surfaces lead with money recovered.
+ * Defaults preserve the original four-tile behaviour.
  */
 
-import { IndianRupee, Leaf, Recycle, Sparkles } from "lucide-react";
+import { Activity, IndianRupee, Leaf, Recycle, Sparkles } from "lucide-react";
 
 import { formatCurrency, formatNumber } from "@/lib/format";
 import StatCard from "@/components/common/StatCard";
 import { cn } from "@/lib/utils";
 
-const ImpactSummary = ({ impact, isOrganization = false, className }) => {
+const DEFAULT_METRICS = ["recycled", "co2", "earned", "points"];
+
+const ImpactSummary = ({
+  impact,
+  isOrganization = false,
+  metrics = DEFAULT_METRICS,
+  className,
+}) => {
   if (!impact) return null;
 
-  const stats = [
+  const allStats = [
     {
       key: "recycled",
       label: "Scrap Recycled",
@@ -30,6 +40,7 @@ const ImpactSummary = ({ impact, isOrganization = false, className }) => {
       value: impact.co2SavedKg,
       format: (n) => `${formatNumber(n, { decimals: 1 })} kg`,
       icon: Leaf,
+      iconClassName: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
       hint: `≈ ${formatNumber(Math.max(1, Math.round(impact.co2SavedKg / 21)))} trees planted`,
     },
     {
@@ -38,6 +49,7 @@ const ImpactSummary = ({ impact, isOrganization = false, className }) => {
       value: impact.moneyEarned,
       format: (n) => formatCurrency(n),
       icon: IndianRupee,
+      iconClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       hint: "Paid at verified scrap rates",
     },
     {
@@ -46,9 +58,23 @@ const ImpactSummary = ({ impact, isOrganization = false, className }) => {
       value: impact.ecoPoints,
       format: (n) => formatNumber(Math.round(n)),
       icon: Sparkles,
+      iconClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
       hint: "Redeemable in Rewards",
     },
+    {
+      key: "activities",
+      label: "Eco Activities",
+      value: impact.activities,
+      format: (n) => formatNumber(Math.round(n)),
+      icon: Activity,
+      iconClassName: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+      hint: "Pickups, reuse and campaigns",
+    },
   ];
+
+  const stats = metrics
+    .map((key) => allStats.find((stat) => stat.key === key))
+    .filter(Boolean);
 
   return (
     <div className={cn("grid grid-cols-2 gap-3 lg:grid-cols-4", className)}>
@@ -59,6 +85,7 @@ const ImpactSummary = ({ impact, isOrganization = false, className }) => {
           value={stat.value}
           format={stat.format}
           icon={stat.icon}
+          iconClassName={stat.iconClassName}
           hint={stat.hint}
           delay={index * 0.06}
         />

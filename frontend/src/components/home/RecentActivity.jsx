@@ -54,9 +54,14 @@ const ActivityRow = ({ activity }) => {
   );
 };
 
-const RecentActivity = ({ activity = [], className }) => (
-  <section className={className} aria-label="Recent activity">
-    <SectionHeader title="Recent activity" />
+const RecentActivity = ({
+  activity = [],
+  title = "Recent activity",
+  description,
+  className,
+}) => (
+  <section className={className} aria-label={title}>
+    <SectionHeader title={title} description={description} />
 
     {activity.length === 0 ? (
       <EmptyState

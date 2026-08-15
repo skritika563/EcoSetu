@@ -51,14 +51,18 @@
   --action-teal-fg:       #115E59;
 
   /* ── shadcn/Tailwind token overrides ───────────────────────── */
-  --background:            oklch(0.993 0.016 100);   /* warm cream ≈ #FEFEE3 */
-  --foreground:            oklch(0.18 0.04 148);      /* deep green-black */
+  /* Surfaces stay near-neutral on purpose. When every surface carries the
+     brand hue the page reads as one flat wash of green and the brand colour
+     has nothing to stand out against — so background, cards, borders and text
+     hold only a trace of warmth, and green is spent on actions and data. */
+  --background:            oklch(0.968 0.011 100);   /* soft cream, less glare */
+  --foreground:            oklch(0.21 0.014 152);     /* near-neutral ink */
 
-  --card:                  oklch(1 0 0);
-  --card-foreground:       oklch(0.18 0.04 148);
+  --card:                  oklch(0.995 0.004 100);
+  --card-foreground:       oklch(0.21 0.014 152);
 
-  --popover:               oklch(1 0 0);
-  --popover-foreground:    oklch(0.18 0.04 148);
+  --popover:               oklch(0.995 0.004 100);
+  --popover-foreground:    oklch(0.21 0.014 152);
 
   /* Primary = EcoSetu forest green #2C6E49 */
   --primary:               oklch(0.43 0.11 152);
@@ -68,8 +72,8 @@
   --secondary:             oklch(0.59 0.09 152);
   --secondary-foreground:  oklch(0.99 0 0);
 
-  --muted:                 oklch(0.95 0.01 100);
-  --muted-foreground:      oklch(0.52 0.03 148);
+  --muted:                 oklch(0.935 0.009 100);
+  --muted-foreground:      oklch(0.505 0.016 152);
 
   /* Accent = warm peach #FFC9B9 */
   --accent:                oklch(0.89 0.07 32);
@@ -78,8 +82,8 @@
   --destructive:           oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border:                oklch(0.91 0.015 100);
-  --input:                 oklch(0.91 0.015 100);
+  --border:                oklch(0.898 0.009 100);
+  --input:                 oklch(0.898 0.009 100);
   --ring:                  oklch(0.43 0.11 152);
 
   /* Chart colors — greens + earth tones */
@@ -92,8 +96,8 @@
   --radius: 0.625rem;
 
   /* Sidebar */
-  --sidebar:               oklch(0.97 0.015 148);
-  --sidebar-foreground:    oklch(0.18 0.04 148);
+  --sidebar:               oklch(0.988 0.006 100);
+  --sidebar-foreground:    oklch(0.21 0.014 152);
   --sidebar-primary:       oklch(0.43 0.11 152);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent:        oklch(0.91 0.02 100);
@@ -104,14 +108,16 @@
 
 /* ─── EcoSetu Brand Tokens — Dark Mode ─────────────────────────────────────── */
 .dark {
-  --background:            oklch(0.14 0.02 148);     /* very dark green-black */
-  --foreground:            oklch(0.95 0.01 100);
+  /* Same principle as light: surfaces carry only a trace of the brand hue, so
+     the greens read as accents rather than as the entire page. */
+  --background:            oklch(0.158 0.007 152);   /* near-neutral charcoal */
+  --foreground:            oklch(0.94 0.005 100);
 
-  --card:                  oklch(0.19 0.025 148);
-  --card-foreground:       oklch(0.95 0.01 100);
+  --card:                  oklch(0.207 0.008 152);
+  --card-foreground:       oklch(0.94 0.005 100);
 
-  --popover:               oklch(0.19 0.025 148);
-  --popover-foreground:    oklch(0.95 0.01 100);
+  --popover:               oklch(0.207 0.008 152);
+  --popover-foreground:    oklch(0.94 0.005 100);
 
   --primary:               oklch(0.63 0.12 152);     /* brighter green in dark */
   --primary-foreground:    oklch(0.12 0.04 148);
@@ -119,8 +125,8 @@
   --secondary:             oklch(0.24 0.04 148);
   --secondary-foreground:  oklch(0.92 0.01 100);
 
-  --muted:                 oklch(0.22 0.025 148);
-  --muted-foreground:      oklch(0.65 0.04 148);
+  --muted:                 oklch(0.245 0.008 152);
+  --muted-foreground:      oklch(0.685 0.014 152);
 
   --accent:                oklch(0.75 0.07 32);
   --accent-foreground:     oklch(0.15 0.04 32);
@@ -138,8 +144,8 @@
   --chart-4:               oklch(0.84 0.10 70);
   --chart-5:               oklch(0.75 0.07 32);
 
-  --sidebar:               oklch(0.17 0.025 148);
-  --sidebar-foreground:    oklch(0.92 0.01 100);
+  --sidebar:               oklch(0.185 0.008 152);
+  --sidebar-foreground:    oklch(0.92 0.005 100);
   --sidebar-primary:       oklch(0.63 0.12 152);
   --sidebar-primary-foreground: oklch(0.12 0.04 148);
   --sidebar-accent:        oklch(0.22 0.03 148);
@@ -291,16 +297,16 @@
 .ecosetu-gradient-subtle {
   background: linear-gradient(
     135deg,
-    oklch(0.95 0.02 152) 0%,
-    oklch(0.993 0.016 100) 100%
+    oklch(0.955 0.020 152) 0%,
+    oklch(0.968 0.011 100) 100%
   );
 }
 
 .dark .ecosetu-gradient-subtle {
   background: linear-gradient(
     135deg,
-    oklch(0.20 0.02 148) 0%,
-    oklch(0.14 0.02 148) 100%
+    oklch(0.215 0.014 152) 0%,
+    oklch(0.158 0.007 152) 100%
   );
 }
 

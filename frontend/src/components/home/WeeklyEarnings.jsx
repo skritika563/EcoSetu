@@ -57,7 +57,9 @@ const WeeklyEarnings = ({ data = [], className }) => {
                   transition={{ duration: 0.5, delay: index * 0.05, ease: "easeOut" }}
                   className={cn(
                     "w-full rounded-md",
-                    isBest ? "bg-primary" : "bg-primary/25"
+                    // Amber marks the peak so the eye lands on it, instead of
+                    // seven near-identical green blocks.
+                    isBest ? "bg-ecosetu-orange" : "bg-primary/20"
                   )}
                   title={`${day.day}: ${formatCurrency(day.amount)}`}
                 />

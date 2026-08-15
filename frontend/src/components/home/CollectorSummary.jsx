@@ -26,6 +26,7 @@ const CollectorSummary = ({ today, className }) => {
           value={jobsCompleted}
           format={(n) => `${Math.round(n)} / ${jobsTotal}`}
           icon={ClipboardList}
+          iconClassName="bg-sky-500/10 text-sky-600 dark:text-sky-400"
           hint={remaining > 0 ? `${remaining} remaining` : "All jobs done — nice work"}
         />
         <StatCard
@@ -33,6 +34,7 @@ const CollectorSummary = ({ today, className }) => {
           value={earnings}
           format={(n) => formatCurrency(n)}
           icon={IndianRupee}
+          iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
           hint="Paid on completion"
           delay={0.06}
         />
@@ -41,6 +43,7 @@ const CollectorSummary = ({ today, className }) => {
           value={weightKg}
           format={(n) => `${formatNumber(n, { decimals: 1 })} kg`}
           icon={Weight}
+          iconClassName="bg-teal-500/10 text-teal-600 dark:text-teal-400"
           hint="Across all completed jobs"
           delay={0.12}
         />

@@ -13,12 +13,18 @@ import { getCategory } from "@/config/domain";
 import { formatNumber } from "@/lib/format";
 import SectionHeader from "@/components/common/SectionHeader";
 import EmptyState from "@/components/common/EmptyState";
+import { cn } from "@/lib/utils";
 
-const CollectionBreakdown = ({ data = [], className }) => {
+const CollectionBreakdown = ({
+  data = [],
+  title = "Collection breakdown",
+  description,
+  className,
+}) => {
   if (data.length === 0) {
     return (
-      <section className={className} aria-label="Collection breakdown">
-        <SectionHeader title="Collection breakdown" />
+      <section className={className} aria-label={title}>
+        <SectionHeader title={title} />
         <EmptyState
           icon={PieChart}
           title="Nothing collected yet"
@@ -32,10 +38,12 @@ const CollectionBreakdown = ({ data = [], className }) => {
   const peak = Math.max(...data.map((item) => item.weightKg), 1);
 
   return (
-    <section className={className} aria-label="Collection breakdown">
+    <section className={className} aria-label={title}>
       <SectionHeader
-        title="Collection breakdown"
-        description={`${formatNumber(total, { decimals: 1 })} kg collected this month`}
+        title={title}
+        description={
+          description ?? `${formatNumber(total, { decimals: 1 })} kg collected this month`
+        }
       />
 
       <ul className="space-y-2.5 rounded-xl border border-border bg-card p-4">
@@ -68,7 +76,7 @@ const CollectionBreakdown = ({ data = [], className }) => {
                     initial={{ width: 0 }}
                     animate={{ width: `${(item.weightKg / peak) * 100}%` }}
                     transition={{ duration: 0.5, delay: index * 0.04, ease: "easeOut" }}
-                    className="h-full rounded-full bg-primary/70"
+                    className={cn("h-full rounded-full", category.bar)}
                   />
                 </div>
               </div>
