@@ -1,0 +1,43 @@
+/*
+ * App.css — EcoSetu application-level styles
+ * Scoped CSS that complements the design system in index.css.
+ * Component-specific styles live with their component files.
+ */
+
+/* Page transition wrapper */
+.page-enter {
+  animation: page-fade-in 0.25s ease-out;
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Hero gradient text */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--ecosetu-primary) 0%,
+    var(--ecosetu-secondary) 50%,
+    var(--ecosetu-orange) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--muted);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

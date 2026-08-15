@@ -9,6 +9,8 @@ node_modules/
 # Firebase service account (contains private key — never commit)
 config/*-firebase-adminsdk-*.json
 config/firebase-service-account.json
+config/*service-account*.json
+config/*adminsdk*.json
 
 # Build output
 dist/

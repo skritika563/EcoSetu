@@ -17,4 +17,6 @@
  * - Analytics.js     → Pre-aggregated sustainability metrics
  */
 
-module.exports = {};
+const User = require("./User");
+
+module.exports = { User };

@@ -1,0 +1,252 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/figtree";
+
+/* ─── Dark mode via class strategy ─────────────────────────────────────────── */
+@custom-variant dark (&:is(.dark *));
+
+/* ─── EcoSetu Brand Tokens — Light Mode ────────────────────────────────────── */
+:root {
+  /* Brand palette */
+  --ecosetu-primary:       #2C6E49;   /* Forest green */
+  --ecosetu-primary-dark:  #1f5237;   /* Hover / pressed */
+  --ecosetu-secondary:     #4C956C;   /* Soft green */
+  --ecosetu-accent:        #FFC9B9;   /* Warm peach */
+  --ecosetu-orange:        #D68C45;   /* Amber */
+  --ecosetu-bg:            #FEFEE3;   /* Warm cream */
+  --ecosetu-surface:       #FFFFFF;
+  --ecosetu-border:        #E2E3C8;
+  --ecosetu-muted:         #6B7A6D;
+  --ecosetu-text:          #1A2E20;
+  --ecosetu-text-muted:    #5E6E60;
+
+  /* ── shadcn/Tailwind token overrides ───────────────────────── */
+  --background:            oklch(0.993 0.016 100);   /* warm cream ≈ #FEFEE3 */
+  --foreground:            oklch(0.18 0.04 148);      /* deep green-black */
+
+  --card:                  oklch(1 0 0);
+  --card-foreground:       oklch(0.18 0.04 148);
+
+  --popover:               oklch(1 0 0);
+  --popover-foreground:    oklch(0.18 0.04 148);
+
+  /* Primary = EcoSetu forest green #2C6E49 */
+  --primary:               oklch(0.43 0.11 152);
+  --primary-foreground:    oklch(0.99 0 0);
+
+  /* Secondary = soft green #4C956C */
+  --secondary:             oklch(0.59 0.09 152);
+  --secondary-foreground:  oklch(0.99 0 0);
+
+  --muted:                 oklch(0.95 0.01 100);
+  --muted-foreground:      oklch(0.52 0.03 148);
+
+  /* Accent = warm peach #FFC9B9 */
+  --accent:                oklch(0.89 0.07 32);
+  --accent-foreground:     oklch(0.25 0.06 32);
+
+  --destructive:           oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border:                oklch(0.91 0.015 100);
+  --input:                 oklch(0.91 0.015 100);
+  --ring:                  oklch(0.43 0.11 152);
+
+  /* Chart colors — greens + earth tones */
+  --chart-1:               oklch(0.43 0.11 152);
+  --chart-2:               oklch(0.59 0.09 152);
+  --chart-3:               oklch(0.70 0.12 72);
+  --chart-4:               oklch(0.80 0.10 70);
+  --chart-5:               oklch(0.89 0.07 32);
+
+  --radius: 0.625rem;
+
+  /* Sidebar */
+  --sidebar:               oklch(0.97 0.015 148);
+  --sidebar-foreground:    oklch(0.18 0.04 148);
+  --sidebar-primary:       oklch(0.43 0.11 152);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent:        oklch(0.91 0.02 100);
+  --sidebar-accent-foreground: oklch(0.25 0.04 148);
+  --sidebar-border:        oklch(0.89 0.015 100);
+  --sidebar-ring:          oklch(0.43 0.11 152);
+}
+
+/* ─── EcoSetu Brand Tokens — Dark Mode ─────────────────────────────────────── */
+.dark {
+  --background:            oklch(0.14 0.02 148);     /* very dark green-black */
+  --foreground:            oklch(0.95 0.01 100);
+
+  --card:                  oklch(0.19 0.025 148);
+  --card-foreground:       oklch(0.95 0.01 100);
+
+  --popover:               oklch(0.19 0.025 148);
+  --popover-foreground:    oklch(0.95 0.01 100);
+
+  --primary:               oklch(0.63 0.12 152);     /* brighter green in dark */
+  --primary-foreground:    oklch(0.12 0.04 148);
+
+  --secondary:             oklch(0.24 0.04 148);
+  --secondary-foreground:  oklch(0.92 0.01 100);
+
+  --muted:                 oklch(0.22 0.025 148);
+  --muted-foreground:      oklch(0.65 0.04 148);
+
+  --accent:                oklch(0.75 0.07 32);
+  --accent-foreground:     oklch(0.15 0.04 32);
+
+  --destructive:           oklch(0.65 0.22 27);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border:                oklch(1 0 0 / 12%);
+  --input:                 oklch(1 0 0 / 14%);
+  --ring:                  oklch(0.63 0.12 152);
+
+  --chart-1:               oklch(0.63 0.12 152);
+  --chart-2:               oklch(0.72 0.10 152);
+  --chart-3:               oklch(0.78 0.12 72);
+  --chart-4:               oklch(0.84 0.10 70);
+  --chart-5:               oklch(0.75 0.07 32);
+
+  --sidebar:               oklch(0.17 0.025 148);
+  --sidebar-foreground:    oklch(0.92 0.01 100);
+  --sidebar-primary:       oklch(0.63 0.12 152);
+  --sidebar-primary-foreground: oklch(0.12 0.04 148);
+  --sidebar-accent:        oklch(0.22 0.03 148);
+  --sidebar-accent-foreground: oklch(0.92 0.01 100);
+  --sidebar-border:        oklch(1 0 0 / 12%);
+  --sidebar-ring:          oklch(0.63 0.12 152);
+}
+
+/* ─── Tailwind theme mapping ────────────────────────────────────────────────── */
+@theme inline {
+  --font-sans:    'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /* Brand CSS vars exposed as Tailwind colors */
+  --color-ecosetu-primary:    var(--ecosetu-primary);
+  --color-ecosetu-secondary:  var(--ecosetu-secondary);
+  --color-ecosetu-accent:     var(--ecosetu-accent);
+  --color-ecosetu-orange:     var(--ecosetu-orange);
+  --color-ecosetu-bg:         var(--ecosetu-bg);
+
+  /* shadcn tokens */
+  --color-background:         var(--background);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-ring:               var(--ring);
+  --color-chart-1:            var(--chart-1);
+  --color-chart-2:            var(--chart-2);
+  --color-chart-3:            var(--chart-3);
+  --color-chart-4:            var(--chart-4);
+  --color-chart-5:            var(--chart-5);
+  --color-sidebar:            var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary:    var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:     var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:     var(--sidebar-border);
+  --color-sidebar-ring:       var(--sidebar-ring);
+
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ─── Base resets ────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    line-height: 1.6;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-semibold tracking-tight;
+    color: var(--foreground);
+  }
+}
+
+/* ─── App layout ─────────────────────────────────────────────────────────────── */
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Utility: gradient backgrounds ─────────────────────────────────────────── */
+.ecosetu-gradient {
+  background: linear-gradient(
+    135deg,
+    oklch(0.43 0.11 152) 0%,
+    oklch(0.59 0.09 152) 50%,
+    oklch(0.70 0.12 72) 100%
+  );
+}
+
+.ecosetu-gradient-subtle {
+  background: linear-gradient(
+    135deg,
+    oklch(0.95 0.02 152) 0%,
+    oklch(0.993 0.016 100) 100%
+  );
+}
+
+/* ─── Glassmorphism card ──────────────────────────────────────────────────────── */
+.glass-card {
+  background: oklch(1 0 0 / 65%);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 25%);
+}
+.dark .glass-card {
+  background: oklch(0.19 0.025 148 / 70%);
+  border: 1px solid oklch(1 0 0 / 10%);
+}
+
+/* ─── Focus ring ─────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ─── Scrollbar (WebKit) ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.75 0.05 148); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.59 0.09 152); }

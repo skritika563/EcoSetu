@@ -45,9 +45,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
-// Routes will be mounted here as they are developed:
-//
-// const authRoutes = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes");
 // const userRoutes = require("./routes/userRoutes");
 // const pickupRoutes = require("./routes/pickupRoutes");
 // const organizationRoutes = require("./routes/organizationRoutes");
@@ -59,8 +57,8 @@ app.get("/api/health", (req, res) => {
 // const analyticsRoutes = require("./routes/analyticsRoutes");
 // const scrapRateRoutes = require("./routes/scrapRateRoutes");
 // const adminRoutes = require("./routes/adminRoutes");
-//
-// app.use("/api/auth", authRoutes);
+
+app.use("/api/auth", authRoutes);
 // app.use("/api/users", userRoutes);
 // app.use("/api/pickups", pickupRoutes);
 // app.use("/api/organizations", organizationRoutes);
