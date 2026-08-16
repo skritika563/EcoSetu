@@ -5,6 +5,7 @@
  * Jobs module.
  */
 
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ClipboardList, Clock, MapPin, Navigation, Weight } from "lucide-react";
 
@@ -85,7 +86,9 @@ const NextJobCard = ({ job }) => {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={() => notifyComingSoon("Job details")}>Open Job</Button>
+        <Button asChild>
+          <Link to={`/jobs/${job.id}`}>Open Job</Link>
+        </Button>
         <Button variant="outline" onClick={() => notifyComingSoon("Navigation")}>
           <Navigation className="mr-1.5 h-4 w-4" />
           Navigate

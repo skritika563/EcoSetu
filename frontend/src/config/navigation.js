@@ -31,7 +31,7 @@ import {
 /** Household / organization share the same core product surface. */
 const GENERAL_NAV = [
   { key: "home", label: "Home", to: "/", icon: Home, available: true },
-  { key: "pickups", label: "Pickups", to: "/pickups", icon: Truck, available: false },
+  { key: "pickups", label: "Pickups", to: "/pickups", icon: Truck, available: true },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
   { key: "rewards", label: "Rewards", to: "/rewards", icon: Gift, available: false },
 ];
@@ -45,7 +45,7 @@ const ORGANIZATION_NAV = [
 /** Collectors get an operational surface rather than a consumer one. */
 const COLLECTOR_NAV = [
   { key: "home", label: "Home", to: "/", icon: Home, available: true },
-  { key: "jobs", label: "Jobs", to: "/jobs", icon: ClipboardList, available: false },
+  { key: "jobs", label: "Jobs", to: "/jobs", icon: ClipboardList, available: true },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
   { key: "earnings", label: "Earnings", to: "/earnings", icon: Wallet, available: false },
 ];
@@ -76,21 +76,21 @@ export const getPrimaryNav = (role) => {
  * scannable at a glance; the page background is never used.
  */
 const HOUSEHOLD_ACTIONS = [
-  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: false, accent: "blue" },
+  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
   { key: "campaigns", label: "Nearby Campaigns", to: "/campaigns", icon: MapPin, available: false, accent: "orange" },
   { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "teal" },
 ];
 
 const ORGANIZATION_ACTIONS = [
-  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: false, accent: "blue" },
+  { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
   { key: "create-campaign", label: "Create Campaign", to: "/campaigns/new", icon: Megaphone, available: false, accent: "orange" },
   { key: "impact", label: "View Impact", to: "/rewards", icon: BarChart3, available: false, accent: "teal" },
 ];
 
 const COLLECTOR_ACTIONS = [
-  { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: false, accent: "blue" },
+  { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: true, accent: "blue" },
   { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "purple" },
   { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: false, accent: "orange" },
   { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: false, accent: "teal" },

@@ -3,8 +3,18 @@
  *
  * Mock feed for now (see hooks/useNotifications). Notification objects live in
  * data/notificationData.js, never inline here.
+ *
+ * Radix aligns `align="end"` to the TRIGGER's own right edge — but the bell
+ * isn't the rightmost element in the navbar, the profile avatar is. Left
+ * alone, the panel stops short of the true margin by roughly the avatar's
+ * width, leaving a visible gap on narrow screens. `useAlignOffsetToParentEdge`
+ * measures the real gap (the bell's containing flex cluster's right edge minus
+ * the bell's own) and feeds it back as `alignOffset`, so the panel's edge
+ * lands flush with the avatar's — the same edge the profile dropdown already
+ * reaches naturally as the last element in that cluster.
  */
 
+import { useLayoutEffect, useRef, useState } from "react";
 import { Bell, CalendarCheck, CheckCheck, Megaphone, Sparkles, Store } from "lucide-react";
 
 import { useNotifications } from "@/hooks/useNotifications";
@@ -77,11 +87,32 @@ const NotificationBell = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const hasNotifications = notifications.length > 0;
 
+  const triggerRef = useRef(null);
+  const [alignOffset, setAlignOffset] = useState(0);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const trigger = triggerRef.current;
+      const cluster = trigger?.parentElement; // the flex row holding theme/bell/avatar
+      if (!trigger || !cluster) return;
+      const gap = cluster.getBoundingClientRect().right - trigger.getBoundingClientRect().right;
+      // Radix's alignOffset for align="end" is signed toward "start" — negative
+      // moves the panel toward the trigger's own end edge and beyond it, which
+      // is what closes the gap here.
+      setAlignOffset(-Math.max(0, gap));
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           id="notification-bell"
+          ref={triggerRef}
           variant="ghost"
           size="icon"
           className="relative h-9 w-9 rounded-full"
@@ -98,7 +129,12 @@ const NotificationBell = () => {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] p-0">
+      <DropdownMenuContent
+        align="end"
+        alignOffset={alignOffset}
+        sideOffset={8}
+        className="w-[min(22rem,calc(100vw-2rem))] p-0"
+      >
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="font-heading text-sm font-semibold text-foreground">Notifications</span>
           {unreadCount > 0 && (

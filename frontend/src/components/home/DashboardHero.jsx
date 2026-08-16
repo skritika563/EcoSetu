@@ -9,6 +9,7 @@
  * Pickups module.
  */
 
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CalendarPlus, Clock, MapPin, Recycle, Star, Truck, UserCheck } from "lucide-react";
 
@@ -47,9 +48,11 @@ const ReadyToRecycle = ({ isOrganization }) => (
       </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={() => notifyComingSoon("Schedule Pickup")}>
-          <CalendarPlus className="mr-1.5 h-4 w-4" />
-          Schedule Pickup
+        <Button asChild>
+          <Link to="/pickups/new">
+            <CalendarPlus className="mr-1.5 h-4 w-4" />
+            Schedule Pickup
+          </Link>
         </Button>
         <Button variant="outline" onClick={() => notifyComingSoon("Scan Scrap")}>
           Scan my scrap
@@ -142,9 +145,11 @@ const UpcomingPickup = ({ pickup }) => {
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={() => notifyComingSoon("Pickup details")}>View Pickup</Button>
-        <Button variant="ghost" onClick={() => notifyComingSoon("Pickups")}>
-          All pickups
+        <Button asChild>
+          <Link to={`/pickups/${pickup.id}`}>View Pickup</Link>
+        </Button>
+        <Button variant="ghost" asChild>
+          <Link to="/pickups">All pickups</Link>
         </Button>
       </div>
     </div>

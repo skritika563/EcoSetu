@@ -45,6 +45,13 @@ const GeneralUserHome = lazy(() => import("@/pages/home/GeneralUserHome"));
 const CollectorHome = lazy(() => import("@/pages/home/CollectorHome"));
 const SustainabilityDashboard = lazy(() => import("@/pages/dashboard/SustainabilityDashboard"));
 
+// Pickups module — household/organization booking + tracking, collector jobs.
+const GeneralUserPickups = lazy(() => import("@/pages/pickups/GeneralUserPickups"));
+const BookPickupPage = lazy(() => import("@/pages/pickups/BookPickupPage"));
+const PickupDetailsPage = lazy(() => import("@/pages/pickups/PickupDetailsPage"));
+const CollectorJobsPage = lazy(() => import("@/pages/pickups/CollectorJobsPage"));
+const CollectorJobDetailsPage = lazy(() => import("@/pages/pickups/CollectorJobDetailsPage"));
+
 /* ─── Admin placeholder — replaced by the Admin module ───────────────────── */
 function AdminPlaceholder() {
   const { user } = useAuth();
@@ -121,6 +128,22 @@ function App() {
           {/* Sustainability dashboard — impact detail for any signed-in user */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<SustainabilityDashboard />} />
+          </Route>
+
+          {/* Pickups — household/organization booking + tracking.
+              `admin` is allowed through so it can render its own "coming
+              soon" state (checked inside each page) rather than being
+              silently bounced by the role guard. */}
+          <Route element={<ProtectedRoute allowedRoles={["household", "organization", "admin"]} />}>
+            <Route path="/pickups" element={<GeneralUserPickups />} />
+            <Route path="/pickups/new" element={<BookPickupPage />} />
+            <Route path="/pickups/:pickupId" element={<PickupDetailsPage />} />
+          </Route>
+
+          {/* Jobs — the collector's pickup-management surface. */}
+          <Route element={<ProtectedRoute allowedRoles={["collector", "admin"]} />}>
+            <Route path="/jobs" element={<CollectorJobsPage />} />
+            <Route path="/jobs/:jobId" element={<CollectorJobDetailsPage />} />
           </Route>
 
           {/* Role-scoped dashboards — derived from ROLE_META so routes and role

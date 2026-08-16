@@ -175,7 +175,7 @@ const UserDropdown = ({ user, role, logout }) => {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56" sideOffset={8}>
+      <DropdownMenuContent align="end" className="w-56 max-w-[calc(100vw-2rem)]" sideOffset={8}>
         <DropdownMenuLabel className="flex flex-col gap-1 pb-2">
           <span className="truncate font-semibold text-foreground">{user?.name}</span>
           <span className="truncate text-xs font-normal text-muted-foreground">{user?.email}</span>

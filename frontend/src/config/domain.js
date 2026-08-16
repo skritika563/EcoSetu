@@ -53,7 +53,14 @@ const STATUS_MAP = {
   pending: { label: "Pending", tone: "warning" },
   accepted: { label: "Accepted", tone: "info" },
   assigned: { label: "Collector assigned", tone: "info" },
+  // Pickup lifecycle (DATABASE_SCHEMA.md §Pickup Statuses) — additive keys,
+  // `assigned`/`collected` above are kept for existing callers.
+  collector_assigned: { label: "Collector assigned", tone: "info" },
   on_the_way: { label: "On the way", tone: "info" },
+  // Between "on the way" and "collected": the collector has arrived and is
+  // weighing/verifying scrap on site. Not in the DB enum yet — the pickup
+  // record stays `on_the_way` in storage; this is a UI-only sub-state.
+  in_progress: { label: "Pickup in progress", tone: "info" },
   collected: { label: "Collected", tone: "success" },
   delivered: { label: "Delivered", tone: "success" },
   completed: { label: "Completed", tone: "success" },
