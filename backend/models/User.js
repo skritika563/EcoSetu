@@ -25,6 +25,37 @@ const addressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * A saved pickup address — distinct from `address` above, which is the
+ * user's single primary/profile address. The Pickups module's booking flow
+ * lets a household/organization keep several (Home, Office, Campus…) and
+ * pick one per booking; this is that list.
+ */
+const savedAddressSchema = new mongoose.Schema({
+  label: { type: String, required: true, trim: true, maxlength: 50 },
+  line: { type: String, required: true, trim: true },
+  city: { type: String, required: true, trim: true },
+  state: { type: String, default: null, trim: true },
+  pincode: {
+    type: String,
+    default: null,
+    validate: {
+      validator: (v) => v == null || v === "" || /^\d{6}$/.test(v),
+      message: "Pincode must be a 6-digit number",
+    },
+  },
+  landmark: { type: String, default: null, trim: true },
+  contactPhone: {
+    type: String,
+    default: null,
+    validate: {
+      validator: (v) => v == null || v === "" || /^[6-9]\d{9}$/.test(v),
+      message: "Contact phone must be a valid 10-digit Indian mobile number",
+    },
+  },
+  isDefault: { type: Boolean, default: false },
+});
+
 const userSchema = new mongoose.Schema(
   {
     // ── Firebase Link ─────────────────────────────────────────────────────
@@ -99,6 +130,7 @@ const userSchema = new mongoose.Schema(
       type: addressSchema,
       default: () => ({}),
     },
+    savedAddresses: { type: [savedAddressSchema], default: [] },
 
     // ── Status ────────────────────────────────────────────────────────────
     isVerified: {
@@ -115,6 +147,13 @@ const userSchema = new mongoose.Schema(
     totalWeightRecycled: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 }, // Collector: pickup earnings
     totalMarketplaceRevenue: { type: Number, default: 0 }, // Collector: marketplace sales
+    ecoPoints: { type: Number, default: 0 }, // Household/organization: recycling rewards balance
+
+    // ── Collector-specific profile (ignored for other roles) ──────────────
+    collectorProfile: {
+      rating: { type: Number, default: 4.5, min: 1, max: 5 },
+      vehicle: { type: String, default: null },
+    },
 
     // ── Payment ───────────────────────────────────────────────────────────
     razorpayContactId: { type: String, default: null },

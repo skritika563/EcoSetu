@@ -6,13 +6,16 @@
  * for a flat platform fee — so choosing "Instant" replaces the grid with a
  * short explanation instead of showing irrelevant date pickers.
  *
- * Slot availability is realistic mock data (data/pickupData.js), not a real
- * scheduling backend.
+ * Every slot is always selectable — there's no per-slot capacity system, and
+ * any collector can accept any pending pickup regardless of chosen slot, so
+ * showing some as "unavailable" would only be pretending a constraint that
+ * doesn't exist. See data/pickupData.js's header for the fuller reasoning.
  */
 
+import { useMemo } from "react";
 import { CalendarClock, Zap } from "lucide-react";
 
-import { getBookableDates, getSlotAvailability } from "@/data/pickupData";
+import { getBookableDates, TIME_SLOTS } from "@/data/pickupData";
 import { INSTANT_PICKUP_FEE } from "@/data/pricingData";
 import { formatCurrency, formatFriendlyDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,8 +43,7 @@ const TimeSlotPicker = ({
   selectedSlotId,
   onSelectSlot,
 }) => {
-  const dates = getBookableDates();
-  const slots = selectedDate ? getSlotAvailability(selectedDate) : [];
+  const dates = useMemo(() => getBookableDates(), []);
 
   return (
     <div className="space-y-5">
@@ -119,23 +121,19 @@ const TimeSlotPicker = ({
             <div>
               <p className="mb-2 text-sm font-medium text-foreground">Preferred time slot</p>
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                {slots.map((slot) => {
+                {TIME_SLOTS.map((slot) => {
                   const isSelected = slot.id === selectedSlotId;
                   return (
                     <button
                       key={slot.id}
                       type="button"
-                      disabled={!slot.available}
                       onClick={() => onSelectSlot(slot.id)}
                       aria-pressed={isSelected}
-                      aria-label={`${slot.label}${!slot.available ? ", unavailable" : ""}`}
                       className={cn(
                         "rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors",
-                        !slot.available && "cursor-not-allowed border-border/60 text-muted-foreground/50 line-through",
-                        slot.available &&
-                          (isSelected
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-foreground hover:bg-muted/40")
+                        isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border text-foreground hover:bg-muted/40"
                       )}
                     >
                       {slot.label}

@@ -1,8 +1,10 @@
 /**
  * NotificationBell — authenticated-only notification dropdown.
  *
- * Mock feed for now (see hooks/useNotifications). Notification objects live in
- * data/notificationData.js, never inline here.
+ * Backed by /api/notifications (see hooks/useNotifications) — persistent,
+ * per-user notifications in MongoDB, triggered as a side effect of real
+ * pickup events (accepted, completed, points earned). No local notification
+ * data file is involved.
  *
  * Radix aligns `align="end"` to the TRIGGER's own right edge — but the bell
  * isn't the rightmost element in the navbar, the profile avatar is. Left

@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 import PickupStatusTimeline from "@/components/pickups/PickupStatusTimeline";
+import PickupImageGallery from "@/components/pickups/PickupImageGallery";
 import CollectorInfoPanel from "@/components/pickups/CollectorInfoPanel";
 import ReceiptView from "@/components/pickups/ReceiptView";
 import RateCollectorDialog from "@/components/pickups/RateCollectorDialog";
@@ -203,6 +204,8 @@ const PickupDetailsPage = () => {
                 </div>
               )}
             </dl>
+
+            <PickupImageGallery images={pickup.images} className="mt-3" />
 
             {(canCancel || isCompleted) && (
               <>

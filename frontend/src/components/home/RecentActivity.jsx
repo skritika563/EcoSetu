@@ -3,7 +3,7 @@
  * happened. The full history belongs to the Pickups / Rewards modules.
  */
 
-import { History, Megaphone, PackageCheck, ShoppingBag, Sparkles, Truck } from "lucide-react";
+import { CalendarClock, History, Megaphone, PackageCheck, ShoppingBag, Sparkles, Truck, XCircle } from "lucide-react";
 
 import { notifyComingSoon } from "@/lib/comingSoon";
 import { formatRelativeTime } from "@/lib/format";
@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 
 /** Activity type → icon. Data only carries the string key. */
 const TYPE_ICONS = {
+  pickup_scheduled: CalendarClock,
   pickup_completed: Truck,
+  pickup_cancelled: XCircle,
   points_earned: Sparkles,
   marketplace_purchase: ShoppingBag,
   campaign_joined: Megaphone,

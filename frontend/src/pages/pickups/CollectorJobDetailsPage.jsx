@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 
 import PickupStatusTimeline from "@/components/pickups/PickupStatusTimeline";
+import PickupImageGallery from "@/components/pickups/PickupImageGallery";
 import ScrapVerificationForm from "@/components/pickups/ScrapVerificationForm";
 import ReceiptView from "@/components/pickups/ReceiptView";
 
@@ -80,15 +81,37 @@ const ReportIssueDialog = ({ open, onOpenChange, onConfirm, submitting }) => {
   );
 };
 
+// Every early-return in CollectorJobDetailsPage stands in for the full page —
+// without this, only the loaded state got the "All jobs" back link, so a job
+// that fails to load (wrong id, no longer available, network error) left the
+// collector with no way back except the browser's own back button.
+// `withMargin` only matters on the `py-10`-only containers (error/loading/
+// not-found/admin) — the loaded state's own container is `space-y-6`, which
+// already spaces this from the header that follows it.
+const BackToJobsLink = ({ withMargin = false } = {}) => (
+  <Button
+    variant="ghost"
+    size="sm"
+    asChild
+    className={`-ml-2 h-8 text-muted-foreground hover:text-foreground ${withMargin ? "mb-4" : ""}`}
+  >
+    <Link to="/jobs">
+      <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+      All jobs
+    </Link>
+  </Button>
+);
+
 const CollectorJobDetailsPage = () => {
   const { jobId } = useParams();
   const { role } = useAuth();
-  const { pickup: job, loading, error, actionPending, refetch, actions } = usePickupDetails(jobId);
+  const { pickup: job, loading, error, actionPending, refetch, applyUpdate, actions } = usePickupDetails(jobId);
   const [issueOpen, setIssueOpen] = useState(false);
 
   if (role === "admin") {
     return (
       <PageContainer className="py-10">
+        <BackToJobsLink withMargin />
         <EmptyState
           icon={Construction}
           title="Pickup management for administrators is coming soon"
@@ -101,6 +124,7 @@ const CollectorJobDetailsPage = () => {
   if (error) {
     return (
       <PageContainer className="py-10">
+        <BackToJobsLink withMargin />
         <ErrorState title="We couldn't load this job" description={error} onRetry={refetch} />
       </PageContainer>
     );
@@ -109,6 +133,7 @@ const CollectorJobDetailsPage = () => {
   if (loading) {
     return (
       <PageContainer className="space-y-6 py-6 sm:py-8">
+        <BackToJobsLink />
         <HeroSkeleton />
       </PageContainer>
     );
@@ -117,6 +142,7 @@ const CollectorJobDetailsPage = () => {
   if (!job) {
     return (
       <PageContainer className="py-10">
+        <BackToJobsLink withMargin />
         <EmptyState title="Job not found" description="This job may no longer be available." />
       </PageContainer>
     );
@@ -155,12 +181,7 @@ const CollectorJobDetailsPage = () => {
 
   return (
     <PageContainer className="space-y-6 py-6 sm:py-8">
-      <Button variant="ghost" size="sm" asChild className="-ml-2 h-8 text-muted-foreground hover:text-foreground">
-        <Link to="/jobs">
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          All jobs
-        </Link>
-      </Button>
+      <BackToJobsLink />
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -246,6 +267,8 @@ const CollectorJobDetailsPage = () => {
                 </span>
               )}
             </div>
+
+            <PickupImageGallery images={job.images} className="mt-4" />
           </div>
 
           <PickupStatusTimeline status={job.status} statusHistory={job.statusHistory} cancellation={job.cancellation} />
@@ -308,6 +331,9 @@ const CollectorJobDetailsPage = () => {
 
               {primaryAction === "verify" && (
                 <ScrapVerificationForm
+                  pickupId={job.id}
+                  images={job.images ?? []}
+                  onImagesUploaded={applyUpdate}
                   estimatedCategories={job.estimatedCategories ?? []}
                   estimatedWeightKg={job.estimatedWeightKg}
                   serviceCharge={job.serviceCharge}

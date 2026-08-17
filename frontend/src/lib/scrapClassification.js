@@ -6,6 +6,15 @@
  * small set of realistic mixes rather than fully random output, so results
  * look like plausible AI predictions instead of noise.
  *
+ * STATUS as of the full-stack integration pass: the backend has a Gemini
+ * client configured (backend/config/gemini.js) but no classification
+ * endpoint wired to it yet (aiRoutes is still commented out in
+ * backend/app.js) — there is no real AI to call, so this stays a clearly
+ * mocked local function rather than a half-built API that only pretends to
+ * classify. When a real POST /api/ai/classify exists, this file's exported
+ * shape ({category, confidence}[]) should stay the seam callers already code
+ * against, so swapping the implementation needs no caller changes.
+ *
  * IMPORTANT: this is a suggestion, never a final answer.
  *   - The household/organization may accept it, edit it, or skip it entirely
  *     when booking (category is optional at booking time).

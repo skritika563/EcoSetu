@@ -35,10 +35,11 @@ const EMPTY_ADDRESS = {
 
 const AddAddressDialog = ({ open, onOpenChange, onSave }) => {
   const [form, setForm] = useState(EMPTY_ADDRESS);
+  const [saving, setSaving] = useState(false);
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.label.trim() || !form.line.trim() || !form.city.trim()) {
       toast.error("Please fill in the label, address line and city.");
       return;
@@ -52,9 +53,18 @@ const AddAddressDialog = ({ open, onOpenChange, onSave }) => {
       return;
     }
 
-    onSave({ ...form, id: `ADDR-${Date.now()}` });
-    setForm(EMPTY_ADDRESS);
-    onOpenChange(false);
+    // The real id comes back from the server (POST /api/addresses) — this
+    // dialog no longer invents one.
+    setSaving(true);
+    try {
+      await onSave(form);
+      setForm(EMPTY_ADDRESS);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err.message || "Failed to save address. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -127,10 +137,12 @@ const AddAddressDialog = ({ open, onOpenChange, onSave }) => {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save address</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save address"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -199,8 +211,8 @@ const AddressPicker = ({ addresses, selectedId, onSelect, onAddAddress }) => {
       <AddAddressDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSave={(address) => {
-          onAddAddress(address);
+        onSave={async (address) => {
+          await onAddAddress(address);
           toast.success("Address saved");
         }}
       />

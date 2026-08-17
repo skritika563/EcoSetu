@@ -16,6 +16,8 @@ const connectDB = require("./config/db");
 const { initializeFirebase } = require("./config/firebase");
 const { initializeCloudinary } = require("./config/cloudinary");
 const { initializeGemini } = require("./config/gemini");
+const { initializeRazorpay } = require("./config/razorpay");
+const seedScrapRates = require("./scripts/seedScrapRates");
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
@@ -26,6 +28,9 @@ const startServer = async () => {
     // 1. Connect to MongoDB Atlas
     await connectDB();
 
+    // 1b. Seed default scrap rates if the collection is empty (idempotent)
+    await seedScrapRates();
+
     // 2. Initialize Firebase Admin SDK
     initializeFirebase();
 
@@ -34,6 +39,9 @@ const startServer = async () => {
 
     // 4. Initialize Google Gemini AI
     initializeGemini();
+
+    // 4b. Initialize Razorpay (instant-pickup fee payments)
+    initializeRazorpay();
 
     // 5. Start HTTP Server
     app.listen(PORT, () => {

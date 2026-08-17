@@ -159,8 +159,31 @@ const ACHIEVEMENT_DEFINITIONS = [
   { id: "streak-keeper", name: "Streak Keeper", description: "Stay eco-active 7 days in a row.", metric: "streak", target: 7, unit: "days", icon: "flame" },
 ];
 
-/* ─── Streaks (mock — a real one would come from activity timestamps) ────── */
-const STREAKS = {
+/**
+ * Build achievement progress from a REAL summary (services/
+ * sustainabilityService.js passes the live API response here) — only the
+ * threshold list and the "which field means what" mapping are canned; the
+ * numbers themselves are never fabricated. Exported so the service layer
+ * doesn't need to re-implement this once real data replaces the mock.
+ */
+export const buildAchievements = (summary, streak, unlockedAtHint) =>
+  ACHIEVEMENT_DEFINITIONS.map((definition) => {
+    const current = definition.metric === "streak" ? streak?.current ?? 0 : summary?.[definition.metric] ?? 0;
+    const unlocked = current >= definition.target;
+
+    return {
+      ...definition,
+      current: Number(current.toFixed ? current.toFixed(1) : current),
+      unlocked,
+      unlockedAt: unlocked ? (unlockedAtHint ?? null) : null,
+    };
+  });
+
+/* ─── Streaks — MOCK, clearly. There is no daily-activity-log endpoint yet,
+ * so a real streak (consecutive days with an eco-positive action) can't be
+ * computed from what the backend currently stores. See
+ * services/sustainabilityService.js for exactly how this is surfaced. ────── */
+export const STREAKS = {
   household: { current: 6, longest: 14, week: [true, true, true, true, true, true, false] },
   organization: { current: 9, longest: 21, week: [true, true, true, true, true, true, false] },
   collector: { current: 12, longest: 28, week: [true, true, true, true, true, true, true] },

@@ -7,9 +7,17 @@
  *   Upcoming — accepted jobs, not yet finished. Today's jobs are grouped
  *              first within this tab rather than needing a separate "Today"
  *              tab — the whole list is sorted so "today" naturally sorts up.
- *   Requests — pending pickups nobody has accepted yet, with a search box to
- *              find one worth taking.
+ *   Requests — pending pickups nobody has accepted yet, with a search box,
+ *              a sort order and filters to find one worth taking.
  *   History  — completed and cancelled jobs, most recent 30.
+ *
+ * Requests sort/filter is deliberately built only from REAL fields already
+ * on a pickup — pickup type, date, city. There's no "near me" distance sort:
+ * that would need real geocoordinates for both the pickup address and the
+ * collector's own location, and neither exists yet (pickupSerializer's
+ * distanceKm is always null — see its own comment). Faking a distance
+ * number would be exactly the kind of half-real feature this project avoids
+ * — city is the closest honest proxy for "near me" available today.
  */
 
 import { useMemo, useState } from "react";
@@ -24,6 +32,13 @@ import EmptyState from "@/components/common/EmptyState";
 import ErrorState from "@/components/common/ErrorState";
 import { ListSkeleton } from "@/components/common/SectionSkeleton";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import JobCard from "@/components/pickups/JobCard";
 
@@ -42,27 +57,64 @@ const byRecentActivityDescending = (a, b) => {
   return new Date(lastAt(b)) - new Date(lastAt(a));
 };
 
+/* ─── Requests tab: sort + filter (real fields only, see file header) ────── */
+const REQUEST_SORTS = {
+  soonest: { label: "Soonest pickup date", compare: byDateAscending },
+  instant: {
+    label: "Instant pickups first",
+    compare: (a, b) => {
+      if (a.pickupType !== b.pickupType) return a.pickupType === "instant" ? -1 : 1;
+      return byDateAscending(a, b);
+    },
+  },
+  newest: {
+    label: "Newest requests",
+    compare: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  },
+};
+
+const TYPE_FILTERS = {
+  all: { label: "All types", match: () => true },
+  instant: { label: "Instant only", match: (job) => job.pickupType === "instant" },
+  scheduled: { label: "Scheduled only", match: (job) => job.pickupType === "scheduled" },
+};
+
 const CollectorJobsPage = () => {
   const { role } = useAuth();
   const { data, loading, error, refetch } = usePickups();
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState("soonest");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
 
   // All hooks must run in the same order on every render, so these are
   // computed unconditionally even though they're unused on the admin path.
+  const allRequests = useMemo(
+    () => (data ? data.filter(COLLECTOR_JOB_TABS.find((t) => t.value === "requests").filter) : []),
+    [data]
+  );
+
+  // Real cities only — built from whatever's actually in the current
+  // requests, not a fixed list, so it never offers a city with nothing in it.
+  const cityOptions = useMemo(() => {
+    const cities = new Set(allRequests.map((job) => job.pickupAddress?.city).filter(Boolean));
+    return Array.from(cities).sort();
+  }, [allRequests]);
+
   const requestResults = useMemo(() => {
-    if (!data) return [];
-    const requests = data.filter(COLLECTOR_JOB_TABS.find((t) => t.value === "requests").filter);
     const query = search.trim().toLowerCase();
-    const filtered = query
-      ? requests.filter(
-          (job) =>
-            job.id.toLowerCase().includes(query) ||
-            job.pickupAddress?.line?.toLowerCase().includes(query) ||
-            job.customer?.name?.toLowerCase().includes(query)
-        )
-      : requests;
-    return filtered.sort(byDateAscending);
-  }, [data, search]);
+    return allRequests
+      .filter(TYPE_FILTERS[typeFilter].match)
+      .filter((job) => cityFilter === "all" || job.pickupAddress?.city === cityFilter)
+      .filter(
+        (job) =>
+          !query ||
+          job.id.toLowerCase().includes(query) ||
+          job.pickupAddress?.line?.toLowerCase().includes(query) ||
+          job.customer?.name?.toLowerCase().includes(query)
+      )
+      .sort(REQUEST_SORTS[sortKey].compare);
+  }, [allRequests, search, sortKey, typeFilter, cityFilter]);
 
   const upcoming = useMemo(() => {
     if (!data) return { today: [], later: [] };
@@ -157,7 +209,7 @@ const CollectorJobsPage = () => {
             )}
           </TabsContent>
 
-          {/* Requests — pending, unaccepted pickups, searchable */}
+          {/* Requests — pending, unaccepted pickups, searchable/sortable/filterable */}
           <TabsContent value="requests" className="mt-4 space-y-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -170,9 +222,60 @@ const CollectorJobsPage = () => {
               />
             </div>
 
+            <div className="flex flex-wrap gap-2.5">
+              <Select value={sortKey} onValueChange={setSortKey}>
+                <SelectTrigger className="w-full sm:w-48" aria-label="Sort requests">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(REQUEST_SORTS).map(([key, sort]) => (
+                    <SelectItem key={key} value={key}>
+                      {sort.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-40" aria-label="Filter by pickup type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TYPE_FILTERS).map(([key, filter]) => (
+                    <SelectItem key={key} value={key}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Only worth showing once there's an actual choice to make —
+                  a one-city dropdown is a "near me" filter with nothing to
+                  filter out. */}
+              {cityOptions.length > 1 && (
+                <Select value={cityFilter} onValueChange={setCityFilter}>
+                  <SelectTrigger className="w-full sm:w-40" aria-label="Filter by city">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All cities</SelectItem>
+                    {cityOptions.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             {requestResults.length === 0 ? (
               <EmptyState
-                title={search.trim() ? "No requests match your search." : EMPTY_COPY.requests}
+                title={
+                  search.trim() || typeFilter !== "all" || cityFilter !== "all"
+                    ? "No requests match your search or filters."
+                    : EMPTY_COPY.requests
+                }
                 className="py-12"
               />
             ) : (

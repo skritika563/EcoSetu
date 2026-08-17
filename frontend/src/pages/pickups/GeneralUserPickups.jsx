@@ -89,7 +89,9 @@ const GeneralUserPickups = () => {
   const handleCancel = async (reason) => {
     setCancelling(true);
     try {
-      await cancelPickup(cancelTarget.id, { reason, cancelledBy: role === "organization" ? "organization" : "household" });
+      // The server derives who's cancelling from the verified token — no
+      // client-supplied actor field needed.
+      await cancelPickup(cancelTarget.id, { reason });
       toast.success("Pickup cancelled");
       setCancelTarget(null);
       refetch();

@@ -11,15 +11,24 @@
  * Two modes: entry (add/edit/remove freely) and confirmed (locked, requires
  * an explicit "Edit" tap to change anything) — mirrors the spec's "prevent
  * accidental changes unless an explicit edit action is used."
+ *
+ * Verification photos: the collector can attach real, on-site proof photos
+ * (camera or gallery) via POST /api/pickups/:id/images — tagged
+ * `uploadedBy: "collector"` server-side, kept separate from the customer's
+ * own booking-time photos (see PickupImageGallery). Uploaded immediately on
+ * selection, since the pickup already exists by the time this form renders
+ * — unlike the booking flow, there's no "create pickup first" ordering
+ * constraint here.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { VERIFIABLE_CATEGORIES } from "@/data/pricingData";
 import { calculatePickupTotal } from "@/services/pricingService";
 import { classifyScrapImages } from "@/lib/scrapClassification";
+import { uploadPickupImages } from "@/services/pickupService";
 import { getCategory } from "@/config/domain";
 import { formatWeight } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -38,6 +47,9 @@ let rowSeq = 0;
 const newRow = (category = "", weight = "") => ({ key: `row-${++rowSeq}`, category, weight });
 
 const ScrapVerificationForm = ({
+  pickupId,
+  images = [],
+  onImagesUploaded,
   estimatedCategories = [],
   estimatedWeightKg,
   serviceCharge = 0,
@@ -49,6 +61,25 @@ const ScrapVerificationForm = ({
   const [draftWeight, setDraftWeight] = useState("");
   const [locked, setLocked] = useState(false);
   const [classifying, setClassifying] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const imageInputRef = useRef(null);
+
+  const verificationImages = images.filter((img) => img.uploadedBy === "collector");
+
+  const handleImageFiles = async (fileList) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    setUploadingImages(true);
+    try {
+      const { pickup: updated } = await uploadPickupImages(pickupId, files);
+      onImagesUploaded?.(updated);
+      toast.success(files.length === 1 ? "Photo added" : `${files.length} photos added`);
+    } catch (err) {
+      toast.error(err.message || "Couldn't upload the photo. Please try again.");
+    } finally {
+      setUploadingImages(false);
+    }
+  };
 
   const usedCategories = rows.map((r) => r.category);
   const availableToAdd = VERIFIABLE_CATEGORIES.filter((c) => !usedCategories.includes(c));
@@ -224,19 +255,69 @@ const ScrapVerificationForm = ({
             </div>
           )}
 
-          <Button type="button" variant="outline" size="sm" onClick={runAiAssist} disabled={classifying}>
-            {classifying ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Analysing…
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                AI-assist classification
-              </>
-            )}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={uploadingImages}
+            >
+              {uploadingImages ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Camera className="mr-1.5 h-3.5 w-3.5" />
+                  Add photo
+                </>
+              )}
+            </Button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) handleImageFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+
+            <Button type="button" variant="outline" size="sm" onClick={runAiAssist} disabled={classifying}>
+              {classifying ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Analysing…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  AI-assist classification
+                </>
+              )}
+            </Button>
+          </div>
+
+          {verificationImages.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {verificationImages.map((img) => (
+                <a
+                  key={img.publicId ?? img.url}
+                  href={img.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border"
+                >
+                  <img src={img.url} alt="Verification photo" className="h-full w-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
 
           {rows.length > 0 && (
             <>

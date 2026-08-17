@@ -3,14 +3,20 @@
  * Services Index
  * ──────────────────────────────────────────────────────────────────────────────
  *
+ * Built:
+ * - pricingService.js        → Server-side pickup pricing (ScrapRate lookup)  ✅
+ * - ecoScoreService.js       → Contribution score / Eco Points formula        ✅
+ * - notificationService.js   → Notification creation (fire-and-forget)       ✅
+ * - pickupSerializer.js      → Pickup document → frontend contract shape     ✅
+ * - imageUploadService.js    → Cloudinary upload/delete for pickup photos    ✅
+ *
  * Future services:
- * - firebaseService.js       → Firebase Admin token verification, user management
- * - cloudinaryService.js     → Image upload, delete, URL generation
  * - geminiService.js         → Gemini Vision API calls, classification parsing
- * - pricingService.js        → Dynamic pricing engine (base rates, multipliers, bulk discount calculation)
+ *                                (imageUploadService.js already produces the
+ *                                real Cloudinary URLs this would consume)
  * - razorpayService.js       → Razorpay order generation & payment signature verification
- * - notificationService.js   → Notification creation, broadcast, cleanup
- * - analyticsService.js      → Impact stats (CO2 saved, tree equivalents)
+ * - analyticsController.js already covers dashboard/sustainability aggregation
+ *   directly via Mongoose — no separate analyticsService.js was needed.
  */
 
 module.exports = {};

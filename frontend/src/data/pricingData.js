@@ -1,14 +1,17 @@
 /**
- * Pickup pricing data — the numbers the pricing algorithm runs on.
+ * Pickup pricing data — the numbers the CLIENT-SIDE preview runs on.
  *
- * WHY THIS ISN'T IN .env:
- * .env holds infrastructure config (API URLs, Firebase keys) — values that
- * differ per deployment and are read once at boot. Scrap rates are DOMAIN
- * DATA: numeric, looked up by category throughout the UI, and destined to be
- * replaced by `GET /api/scrap-rates` (API_SPEC.md — "List rates, rate detail,
- * update base rates/multipliers (admin)"). That makes it the same kind of
- * mock data as dashboardData.js or sustainabilityData.js, so it lives here
- * under src/data/ rather than in an env file. No action needed on your side.
+ * STILL MOCK, on purpose, and STILL SAFE: `GET /api/scrap-rates` is now real
+ * (backend/controllers/scrapRateController.js, seeded from these exact same
+ * numbers by backend/scripts/seedScrapRates.js — see RATE SOURCE below), but
+ * nothing here is ever trusted. Every figure this file feeds — the booking
+ * estimate range, the collector's live verification form, the receipt
+ * preview — is a display-only preview; the actual amount is ALWAYS
+ * recomputed server-side from the live ScrapRate collection
+ * (backend/services/pricingService.js) when a pickup is verified, and the
+ * client-sent rate is never trusted. Wiring this file to the API would only
+ * remove a moment of duplicated numbers, not add any real behavior — so it
+ * stays local and synchronous, which every component here still assumes.
  *
  * RATE SOURCE:
  * Base ₹/kg rates match DATABASE_SCHEMA.md §3.3 ScrapRates "Default Seed
@@ -43,6 +46,6 @@ export const VERIFIABLE_CATEGORIES = Object.keys(SCRAP_RATES);
  * Swiggy-style) rather than a percentage, so it's predictable regardless of
  * how much scrap is involved.
  */
-export const INSTANT_PICKUP_FEE = 79;
+export const INSTANT_PICKUP_FEE = 30;
 
 export const getScrapRate = (category) => SCRAP_RATES[category]?.pricePerKg ?? SCRAP_RATES.mixed.pricePerKg;

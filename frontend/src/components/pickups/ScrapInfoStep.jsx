@@ -12,8 +12,12 @@
  * selected chips (with a confidence badge) rather than a separate results
  * panel, so there's one place to review and edit, not two.
  *
- * Images are previewed client-side only (object URLs) — there is no upload
- * target yet, matching the rest of the app's "mock, not fake-backend" rule.
+ * Images are previewed client-side via object URLs while the form is being
+ * filled in — the real upload to Cloudinary only happens after the pickup
+ * itself is created (there's no pickup id to attach photos to before that),
+ * so each entry here keeps the raw File alongside its preview URL; see
+ * BookPickupPage.jsx's confirm flow and services/pickupService.js's
+ * uploadPickupImages.
  */
 
 import { useRef, useState } from "react";
@@ -52,7 +56,11 @@ const ScrapInfoStep = ({ value, onChange }) => {
   const handleFiles = (fileList) => {
     const remaining = MAX_IMAGES - images.length;
     const files = Array.from(fileList).slice(0, remaining);
-    const added = files.map((file) => ({ id: `${file.name}-${Date.now()}-${Math.random()}`, previewUrl: URL.createObjectURL(file) }));
+    const added = files.map((file) => ({
+      id: `${file.name}-${Date.now()}-${Math.random()}`,
+      file, // kept for the real upload after the pickup is created — not just the preview
+      previewUrl: URL.createObjectURL(file),
+    }));
     patch({ images: [...images, ...added] });
   };
 

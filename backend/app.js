@@ -46,29 +46,33 @@ app.get("/api/health", (req, res) => {
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 const authRoutes = require("./routes/authRoutes");
+const pickupRoutes = require("./routes/pickupRoutes");
+const addressRoutes = require("./routes/addressRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const scrapRateRoutes = require("./routes/scrapRateRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 // const userRoutes = require("./routes/userRoutes");
-// const pickupRoutes = require("./routes/pickupRoutes");
 // const organizationRoutes = require("./routes/organizationRoutes");
 // const materialRoutes = require("./routes/materialRoutes");
 // const requestRoutes = require("./routes/requestRoutes");
 // const aiRoutes = require("./routes/aiRoutes");
-// const notificationRoutes = require("./routes/notificationRoutes");
 // const reviewRoutes = require("./routes/reviewRoutes");
-// const analyticsRoutes = require("./routes/analyticsRoutes");
-// const scrapRateRoutes = require("./routes/scrapRateRoutes");
 // const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/auth", authRoutes);
+app.use("/api/pickups", pickupRoutes);
+app.use("/api/addresses", addressRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/scrap-rates", scrapRateRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/payments", paymentRoutes);
 // app.use("/api/users", userRoutes);
-// app.use("/api/pickups", pickupRoutes);
 // app.use("/api/organizations", organizationRoutes);
 // app.use("/api/materials", materialRoutes);
 // app.use("/api/requests", requestRoutes);
 // app.use("/api/ai", aiRoutes);
-// app.use("/api/notifications", notificationRoutes);
 // app.use("/api/reviews", reviewRoutes);
-// app.use("/api/analytics", analyticsRoutes);
-// app.use("/api/scrap-rates", scrapRateRoutes);
 // app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────

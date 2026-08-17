@@ -9,11 +9,12 @@
  *     entirely optional; a user may continue having provided nothing at all.
  *   - Nothing on the review screen is a guaranteed price — see "Estimated
  *     value" wording, sourced from pricingService.estimatePickupValue.
- *   - Scheduled pickups are free; Instant adds the platform fee from
- *     pricingService.getServiceCharge.
+ *   - Scheduled pickups are free; Instant requires a REAL Razorpay payment
+ *     for the platform fee, completed and server-verified BEFORE the pickup
+ *     is created at all (see handleConfirm + services/paymentService.js).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
@@ -21,8 +22,11 @@ import { ArrowLeft, CalendarClock, CheckCircle2, Construction, MapPin, Sparkles 
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useShake } from "@/hooks/useShake";
-import { getSavedAddresses } from "@/data/pickupData";
-import { createPickup } from "@/services/pickupService";
+import { useAddresses } from "@/hooks/useAddresses";
+import { TIME_SLOTS } from "@/data/pickupData";
+import { createPickup, uploadPickupImages } from "@/services/pickupService";
+import { createInstantFeeOrder } from "@/services/paymentService";
+import { loadRazorpayCheckout } from "@/lib/razorpay";
 import { estimatePickupValue, getServiceCharge } from "@/services/pricingService";
 import { getCategory } from "@/config/domain";
 import { formatCurrency, formatFriendlyDate, formatWeight } from "@/lib/format";
@@ -30,6 +34,7 @@ import { shakeAnimation, shakeTransition, slideVariants } from "@/lib/animations
 
 import PageContainer from "@/components/common/PageContainer";
 import EmptyState from "@/components/common/EmptyState";
+import { ListSkeleton } from "@/components/common/SectionSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import StepIndicator from "@/components/shared/StepIndicator";
@@ -59,14 +64,41 @@ const BookPickupPage = () => {
   const [direction, setDirection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [confirmedPickup, setConfirmedPickup] = useState(null);
+  // Separate from `submitting` on purpose: pickup creation and image upload
+  // are two different requests that can fail independently (see
+  // handleConfirm) — "idle" | "uploading" | "success" | "error".
+  const [imageUploadState, setImageUploadState] = useState("idle");
+  const [imageUploadError, setImageUploadError] = useState(null);
   const { shake, triggerShake } = useShake();
 
   const [scrapInfo, setScrapInfo] = useState(EMPTY_SCRAP_INFO);
-  const [addresses, setAddresses] = useState(() => getSavedAddresses(role));
-  const [addressId, setAddressId] = useState(() => addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id);
+  const { addresses, loading: addressesLoading, addAddress } = useAddresses();
+  const [addressId, setAddressId] = useState(null);
   const [pickupType, setPickupType] = useState("scheduled");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState("");
+
+  // Addresses load asynchronously now — pick the default (or first) one the
+  // first time the list arrives, without stomping a choice the user already made.
+  useEffect(() => {
+    if (addressId == null && addresses.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAddressId(addresses.find((a) => a.isDefault)?.id ?? addresses[0].id);
+    }
+  }, [addresses, addressId]);
+
+  // Once the pickup is confirmed, the wizard (and its local image previews)
+  // is gone for good — release the blob: URLs so they don't leak. This runs
+  // regardless of whether the real upload succeeds, since the object URLs
+  // were only ever a local preview aid, not the upload payload itself (the
+  // underlying File objects stay valid and re-usable for a retry either way).
+  useEffect(() => {
+    if (!confirmedPickup) return;
+    scrapInfo.images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    // Only meant to fire once, right when we leave the wizard — scrapInfo
+    // itself never changes again after that point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmedPickup]);
 
   if (role === "admin") {
     return (
@@ -110,17 +142,113 @@ const BookPickupPage = () => {
   const selectedAddress = addresses.find((a) => a.id === addressId);
   const serviceCharge = getServiceCharge(pickupType);
   const estimate = estimatePickupValue(scrapInfo.categories, Number(scrapInfo.estimatedWeightKg) || 0);
+  // TimeSlotPicker selects by slot ID ("afternoon-2") for its own matching
+  // logic, but that raw ID isn't a real time to anyone reading it back later
+  // — resolve it to its human label ("4:00 PM – 6:00 PM") before it's shown
+  // or sent anywhere, so pickup details never displays "afternoon-2".
+  const selectedSlotLabel = TIME_SLOTS.find((s) => s.id === selectedSlotId)?.label ?? null;
+
+  // Uploads whatever's in scrapInfo.images to an already-created pickup.
+  // Pulled out of handleConfirm so the "Retry upload" button can call this
+  // directly without ever creating a second pickup.
+  const uploadImages = async (pickupId) => {
+    setImageUploadState("uploading");
+    setImageUploadError(null);
+    try {
+      const { pickup: updated } = await uploadPickupImages(
+        pickupId,
+        scrapInfo.images.map((img) => img.file)
+      );
+      setConfirmedPickup(updated);
+      setImageUploadState("success");
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      setImageUploadState("error");
+      setImageUploadError(err.message || "Couldn't upload your photos.");
+    }
+  };
+
+  const retryImageUpload = () => {
+    if (confirmedPickup) uploadImages(confirmedPickup.id);
+  };
+
+  /**
+   * Creates a real Razorpay order, opens real Checkout, and resolves with
+   * the {razorpayOrderId, razorpayPaymentId, razorpaySignature} proof only
+   * once a payment has genuinely gone through. Razorpay's SDK is
+   * callback-based, not promise-based — this wraps it so handleConfirm can
+   * just `await` it like everything else. Rejects (never silently resolves)
+   * if the customer closes the modal or the payment fails, so a cancelled
+   * payment can never be mistaken for a completed one.
+   */
+  const collectInstantFeePayment = async () => {
+    const order = await createInstantFeeOrder();
+    const Razorpay = await loadRazorpayCheckout();
+
+    return new Promise((resolve, reject) => {
+      const rzp = new Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.orderId,
+        name: "EcoSetu",
+        description: "Instant pickup platform fee",
+        prefill: {
+          name: user?.name || undefined,
+          email: user?.email || undefined,
+          contact: user?.phone || undefined,
+        },
+        theme: { color: "#16a34a" },
+        handler: (response) => {
+          resolve({
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+        },
+        modal: {
+          ondismiss: () => reject(new Error("Payment was cancelled — your pickup wasn't booked.")),
+        },
+      });
+      rzp.on("payment.failed", (response) => {
+        reject(new Error(response.error?.description || "Payment failed. Please try again."));
+      });
+      rzp.open();
+    });
+  };
 
   const handleConfirm = async () => {
     setSubmitting(true);
+
+    // Instant pickups require real, verified payment BEFORE the pickup ever
+    // exists — never the other way around, and never a pickup created on
+    // the hope that payment will follow. If this fails or the customer
+    // backs out of Checkout, nothing has been booked yet — same as any
+    // other failed step in this form.
+    let paymentProof = {};
+    if (pickupType === "instant") {
+      try {
+        paymentProof = await collectInstantFeePayment();
+      } catch (err) {
+        toast.error(err.message || "Couldn't complete payment. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // The pickup id doesn't exist until creation succeeds — images can only
+    // be attached afterward, as their own separate request. If creation
+    // itself fails, there's no pickup to upload anything to, so that error
+    // is handled and reported on its own, distinct from an image failure.
+    let createdPickup;
     try {
-      const pickup = await createPickup({
-        ownerRole: role,
-        customer: { id: user?._id || user?.id, name: user?.name, phone: user?.phone, type: role },
+      createdPickup = await createPickup({
+        // No customer identity is sent — the server derives the owner from
+        // the verified auth token, never from the request body.
         pickupType,
         pickupAddress: selectedAddress,
         pickupDate: pickupType === "instant" ? new Date().toISOString() : selectedDate,
-        pickupTimeSlot: pickupType === "instant" ? "As soon as possible" : selectedSlotId,
+        pickupTimeSlot: pickupType === "instant" ? "As soon as possible" : selectedSlotLabel,
         estimatedCategories: scrapInfo.categories,
         itemCount: scrapInfo.itemCount ? Number(scrapInfo.itemCount) : null,
         estimatedWeightKg: scrapInfo.estimatedWeightKg ? Number(scrapInfo.estimatedWeightKg) : null,
@@ -128,14 +256,39 @@ const BookPickupPage = () => {
         aiPrediction: scrapInfo.aiPrediction,
         imageCount: scrapInfo.images.length,
         notes: scrapInfo.notes.trim() || null,
+        ...paymentProof,
       });
-      setConfirmedPickup(pickup);
-      toast.success("Pickup scheduled successfully");
     } catch (err) {
-      toast.error(err.message || "Couldn't schedule this pickup. Please try again.");
-    } finally {
+      // The payment already succeeded at this point for an instant pickup —
+      // don't pretend nothing happened. This is a genuinely rare case
+      // (booking validation failing right after a successful charge), and
+      // without a "resume booking with this payment" flow the honest thing
+      // is to say so plainly and point at real support, not silently retry
+      // a fresh charge.
+      if (pickupType === "instant") {
+        toast.error(
+          `Your payment went through, but we couldn't finish booking the pickup: ${err.message || "please try again"}. Contact support with payment ID ${paymentProof.razorpayPaymentId} if this persists.`,
+          { duration: 10000 }
+        );
+      } else {
+        toast.error(err.message || "Couldn't schedule this pickup. Please try again.");
+      }
       setSubmitting(false);
+      return;
     }
+
+    setConfirmedPickup(createdPickup);
+    toast.success("Pickup scheduled successfully");
+
+    // A failure here must never look like a silent success — uploadImages
+    // sets imageUploadState to "error" on failure, which the success screen
+    // below surfaces with a retry action. It deliberately does NOT roll back
+    // or hide the pickup that was already created.
+    if (scrapInfo.images.length > 0) {
+      await uploadImages(createdPickup.id);
+    }
+
+    setSubmitting(false);
   };
 
   /* ─── Success state ───────────────────────────────────────────────────── */
@@ -197,6 +350,21 @@ const BookPickupPage = () => {
                 </div>
               </div>
 
+              {imageUploadState === "uploading" && (
+                <p className="mt-3 text-xs text-muted-foreground">Uploading your photos…</p>
+              )}
+              {imageUploadState === "error" && (
+                <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-left">
+                  <p className="text-xs font-medium text-destructive">
+                    Your pickup was booked, but your photos didn't upload.
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{imageUploadError}</p>
+                  <Button size="sm" variant="outline" className="mt-2" onClick={retryImageUpload}>
+                    Retry upload
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-6 flex flex-col gap-2.5">
                 <Button asChild>
                   <Link to={`/pickups/${confirmedPickup.id}`}>View Pickup</Link>
@@ -215,16 +383,22 @@ const BookPickupPage = () => {
   /* ─── Wizard ──────────────────────────────────────────────────────────── */
   const steps = [
     <ScrapInfoStep key="scrap" value={scrapInfo} onChange={setScrapInfo} />,
-    <AddressPicker
-      key="address"
-      addresses={addresses}
-      selectedId={addressId}
-      onSelect={setAddressId}
-      onAddAddress={(address) => {
-        setAddresses((prev) => [...prev, address]);
-        setAddressId(address.id);
-      }}
-    />,
+    addressesLoading && addresses.length === 0 ? (
+      <ListSkeleton key="address" count={2} />
+    ) : (
+      <AddressPicker
+        key="address"
+        addresses={addresses}
+        selectedId={addressId}
+        onSelect={setAddressId}
+        onAddAddress={async (address) => {
+          // addAddress() posts to /api/addresses and returns the saved record
+          // with its real server-assigned id — no client-side id to fabricate.
+          const created = await addAddress(address);
+          setAddressId(created.id);
+        }}
+      />
+    ),
     <TimeSlotPicker
       key="slot"
       pickupType={pickupType}
@@ -246,7 +420,7 @@ const BookPickupPage = () => {
       address={selectedAddress}
       pickupType={pickupType}
       selectedDate={selectedDate}
-      selectedSlotId={selectedSlotId}
+      selectedSlotLabel={selectedSlotLabel}
       serviceCharge={serviceCharge}
       estimate={estimate}
     />,
@@ -312,7 +486,13 @@ const BookPickupPage = () => {
                   </Button>
                 ) : (
                   <Button className="w-full font-semibold" onClick={handleConfirm} disabled={submitting}>
-                    {submitting ? "Confirming…" : "Confirm Pickup"}
+                    {submitting
+                      ? pickupType === "instant"
+                        ? "Processing payment…"
+                        : "Confirming…"
+                      : pickupType === "instant"
+                        ? `Pay ${formatCurrency(serviceCharge)} & Confirm`
+                        : "Confirm Pickup"}
                   </Button>
                 )}
               </motion.div>
@@ -325,7 +505,7 @@ const BookPickupPage = () => {
 };
 
 /* ─── Review step ────────────────────────────────────────────────────────── */
-const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlotId, serviceCharge, estimate }) => (
+const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlotLabel, serviceCharge, estimate }) => (
   <div className="space-y-4">
     <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/25 p-3.5">
       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -344,7 +524,7 @@ const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlot
           {pickupType === "instant" ? "Instant pickup" : formatFriendlyDate(selectedDate)}
         </p>
         <p className="text-xs text-muted-foreground">
-          {pickupType === "instant" ? "Collector matched within a few hours" : selectedSlotId}
+          {pickupType === "instant" ? "Collector matched within a few hours" : selectedSlotLabel}
         </p>
       </div>
     </div>
@@ -400,7 +580,14 @@ const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlot
     {estimate ? (
       <div className="rounded-xl border border-border bg-muted/25 p-3.5">
         <p className="text-sm font-medium text-foreground">
-          Estimated value: {formatCurrency(estimate.low)}–{formatCurrency(estimate.high)}
+          {/* A single category (or none selected → "mixed") always prices to
+              one exact figure — a "₹6–₹6" range reads like a bug, not a
+              guess, so only show a dash-range when the category mix actually
+              makes the low/high rate differ. */}
+          Estimated value:{" "}
+          {estimate.low === estimate.high
+            ? formatCurrency(estimate.low)
+            : `${formatCurrency(estimate.low)}–${formatCurrency(estimate.high)}`}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Based on your estimate — the collector's on-site weigh-in determines the final amount.
@@ -413,7 +600,12 @@ const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlot
     )}
 
     {serviceCharge > 0 && (
-      <PriceBreakdownTable lines={[]} totalAmount={0} serviceCharge={serviceCharge} mode="estimate" />
+      <>
+        <PriceBreakdownTable lines={[]} totalAmount={0} serviceCharge={serviceCharge} mode="estimate" />
+        <p className="text-xs text-muted-foreground">
+          You'll be asked to pay this now, via Razorpay, to confirm the instant pickup.
+        </p>
+      </>
     )}
   </div>
 );

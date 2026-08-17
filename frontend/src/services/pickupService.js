@@ -1,83 +1,50 @@
 /**
  * Pickup service — the seam between the Pickups module and its data.
  *
- * Holds an in-memory mutable store seeded from data/pickupData.js, so accept
- * → start → verify → complete reads as a real state machine within a session
- * (mirrors how useNotifications' local read/unread state works — it resets on
- * reload, which is expected for a mock).
+ * Backed by /api/pickups on the real backend (backend/controllers/
+ * pickupController.js) — the in-memory mock store this file used to hold is
+ * gone. Every function below keeps its exact prior name and signature, so no
+ * component or hook changes were needed to make this swap; only this file did.
  *
- * When the backend lands, every function below becomes an Axios call against
- * the routes already documented in API_SPEC.md §3.3 (noted per function) and
- * no component changes — callers only see { data, loading, error }.
+ * The server is the only place a pickup's amount is ever computed
+ * (backend/services/pricingService.js) — verifyAndCompletePickup sends only
+ * {category, weight} pairs and trusts whatever total comes back.
  */
 
-import { PICKUPS, SAVED_ADDRESSES } from "@/data/pickupData";
-import { calculatePickupTotal, getServiceCharge } from "@/services/pricingService";
+import api from "@/services/api";
 
-const LATENCY_MS = 450;
-const delay = (ms = LATENCY_MS) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Deep clone so the seed data in data/pickupData.js is never mutated directly. */
-let store = JSON.parse(JSON.stringify(PICKUPS));
-
-const nextId = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-const pushHistory = (record, status, note) => {
-  record.status = status;
-  record.statusHistory.push({ status, at: new Date().toISOString(), note });
-};
-
-const findOrThrow = (id) => {
-  const record = store.find((p) => p.id === id);
-  if (!record) throw new Error(`Pickup ${id} was not found.`);
-  return record;
-};
-
-/* ─── Reads ──────────────────────────────────────────────────────────────── */
-
-/**
- * Pickups owned by a household/organization user.
- * → GET /api/pickups (filtered by user context)
- */
-export const getPickupsForRole = async (role, { empty = false } = {}) => {
-  await delay();
+/** → GET /api/pickups (server scopes this by role: mine, or jobs I can see). */
+export const getPickupsForRole = async (_role, { empty = false } = {}) => {
   if (empty) return [];
-  return store.filter((p) => p.ownerRole === role).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const response = await api.get("/pickups");
+  return response.data.data;
 };
 
-/**
- * Jobs visible to a collector: unassigned pending requests (available to
- * accept) plus anything already assigned to "you" in this mock session.
- * → GET /api/pickups/nearby (available) + GET /api/pickups (assigned)
- */
+/** → GET /api/pickups (collector view — same endpoint, server does the filtering). */
 export const getJobsForCollector = async ({ empty = false } = {}) => {
-  await delay();
   if (empty) return [];
-  return store
-    .filter((p) => p.status === "pending" || p.collector)
-    .sort((a, b) => new Date(a.pickupDate) - new Date(b.pickupDate));
+  const response = await api.get("/pickups");
+  return response.data.data;
 };
 
 /** → GET /api/pickups/:id */
 export const getPickupById = async (id) => {
-  await delay(300);
-  const record = store.find((p) => p.id === id);
-  if (!record) throw new Error(`Pickup ${id} was not found.`);
-  return structuredClone(record);
+  const response = await api.get(`/pickups/${id}`);
+  return response.data.data;
 };
-
-export const getAddressesForRole = (role) => SAVED_ADDRESSES[role] ?? SAVED_ADDRESSES.household;
-
-/* ─── Household / organization actions ──────────────────────────────────── */
 
 /**
  * Book a new pickup. `categories` and `estimatedWeightKg` are optional —
  * the household/organization is never forced to classify their scrap.
+ *
+ * For an instant pickup, `razorpayOrderId`/`razorpayPaymentId`/
+ * `razorpaySignature` must come from a completed Razorpay Checkout (see
+ * services/paymentService.js + BookPickupPage.jsx) — the server re-verifies
+ * the signature and rejects the booking outright if it's missing or
+ * invalid. Omitted entirely for scheduled pickups, which carry no fee.
  * → POST /api/pickups
  */
 export const createPickup = async ({
-  ownerRole,
-  customer,
   pickupType = "scheduled",
   pickupAddress,
   pickupDate,
@@ -90,130 +57,118 @@ export const createPickup = async ({
   imageCount = 0,
   notes = null,
   isDonation = false,
+  razorpayOrderId = null,
+  razorpayPaymentId = null,
+  razorpaySignature = null,
 }) => {
-  await delay(600);
-
-  const record = {
-    id: nextId("PKP"),
-    ownerRole,
+  const response = await api.post("/pickups", {
     pickupType,
-    status: "pending",
+    pickupAddress,
     pickupDate,
     pickupTimeSlot,
     estimatedCategories,
     itemCount,
-    estimatedWeightKg,
+    estimatedWeight: estimatedWeightKg,
     classificationSource,
     aiPrediction,
     imageCount,
     notes,
     isDonation,
-    pickupAddress,
-    customer,
-    collector: null,
-    distanceKm: null,
-    verifiedCategories: [],
-    totalAmount: 0,
-    paymentStatus: "pending",
-    serviceCharge: getServiceCharge(pickupType),
-    statusHistory: [
-      {
-        status: "pending",
-        at: new Date().toISOString(),
-        note: pickupType === "instant" ? "Instant pickup requested" : "Pickup requested",
-      },
-    ],
-    rating: null,
-    cancellation: null,
-    createdAt: new Date().toISOString(),
-  };
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  });
+  return response.data.data;
+};
 
-  store = [record, ...store];
-  return structuredClone(record);
+/**
+ * Upload the scrap photos selected during booking to an already-created
+ * pickup. Must run AFTER createPickup succeeds — there is no pickup id to
+ * attach images to before that (see BookPickupPage.jsx's confirm flow).
+ *
+ * Sends real files via multipart/form-data — never JSON, never base64.
+ *
+ * IMPORTANT: this `api` instance is created with a default
+ * `Content-Type: application/json` header (services/api.js). Leaving that
+ * header in place on a FormData request is a well-known axios footgun — some
+ * environments don't reliably strip/override it for FormData bodies, so the
+ * request can go out with the wrong Content-Type and no multipart boundary,
+ * which the backend then sees as an empty upload with zero files. Explicitly
+ * clearing it here (not omitting it) is what actually lets the browser set
+ * the correct `multipart/form-data; boundary=...` header itself.
+ *
+ * → POST /api/pickups/:id/images
+ * @param {string} id
+ * @param {File[]} files
+ * @returns {Promise<{ imageUrls: string[], pickup: object }>}
+ */
+export const uploadPickupImages = async (id, files) => {
+  // Defensive: only ever send entries that are real File objects. If
+  // something upstream handed us a malformed entry, silently sending it
+  // anyway would produce the exact confusing "Attach at least one image"
+  // server response — filtering it out here and failing loudly client-side
+  // is far easier to diagnose.
+  const validFiles = files.filter((file) => file instanceof File);
+  if (validFiles.length === 0) {
+    throw new Error("No valid photo files to upload — please re-select your photos and try again.");
+  }
+
+  const formData = new FormData();
+  validFiles.forEach((file) => formData.append("images", file));
+  const response = await api.post(`/pickups/${id}/images`, formData, {
+    headers: { "Content-Type": undefined },
+  });
+  return response.data.data;
 };
 
 /** → PUT /api/pickups/:id/cancel */
-export const cancelPickup = async (id, { reason, cancelledBy }) => {
-  await delay();
-  const record = findOrThrow(id);
-
-  if (record.status === "completed") {
-    throw new Error("A completed pickup can no longer be cancelled.");
-  }
-
-  record.cancellation = { reason, cancelledBy, cancelledAt: new Date().toISOString() };
-  pushHistory(record, "cancelled", reason || "Pickup cancelled");
-  return structuredClone(record);
+export const cancelPickup = async (id, { reason }) => {
+  const response = await api.put(`/pickups/${id}/cancel`, { reason });
+  return response.data.data;
 };
 
-/** → POST /api/reviews (pickup-scoped) */
+/** → POST /api/pickups/:id/rate */
 export const rateCollector = async (id, { stars, review }) => {
-  await delay();
-  const record = findOrThrow(id);
-  record.rating = { stars, review: review || null, ratedAt: new Date().toISOString() };
-  return structuredClone(record);
+  const response = await api.post(`/pickups/${id}/rate`, { stars, review });
+  return response.data.data;
 };
-
-/* ─── Collector actions ──────────────────────────────────────────────────── */
 
 /** → PUT /api/pickups/:id/accept */
-export const acceptJob = async (id, collectorInfo) => {
-  await delay();
-  const record = findOrThrow(id);
-
-  if (record.status !== "pending") {
-    throw new Error("This job has already been accepted by another collector.");
-  }
-
-  record.collector = collectorInfo;
-  pushHistory(record, "collector_assigned", `${collectorInfo?.name ?? "You"} accepted the job`);
-  return structuredClone(record);
+export const acceptJob = async (id) => {
+  const response = await api.put(`/pickups/${id}/accept`);
+  return response.data.data;
 };
 
 /**
  * Move a job forward: collector_assigned → on_the_way → in_progress.
  * → PUT /api/pickups/:id/status
  */
-export const updateJobStatus = async (id, status, note) => {
-  await delay(300);
-  const record = findOrThrow(id);
-  pushHistory(record, status, note);
-  return structuredClone(record);
+export const updateJobStatus = async (id, status) => {
+  const response = await api.put(`/pickups/${id}/status`, { status });
+  return response.data.data;
 };
 
 /** → PUT /api/pickups/:id/cancel (collector-initiated) */
-export const reportJobIssue = async (id, reason) => cancelPickup(id, { reason, cancelledBy: "collector" });
+export const reportJobIssue = async (id, reason) => cancelPickup(id, { reason });
 
 /**
  * Collector's final, authoritative classification. The collector must record
  * EVERY category actually present — never just confirm the customer's
  * estimate — and the amount is always Σ(actual category × actual weight ×
- * current rate), never the customer's estimated weight.
+ * current rate), computed server-side and never trusted from the client.
  * → PUT /api/pickups/:id/verify
  */
 export const verifyAndCompletePickup = async (id, verifiedCategories) => {
-  await delay(600);
-  const record = findOrThrow(id);
-
-  const { lines, totalAmount } = calculatePickupTotal(verifiedCategories);
-  if (lines.length === 0) {
-    throw new Error("Record at least one category with a weight greater than zero.");
-  }
-
-  record.verifiedCategories = lines;
-  record.totalAmount = totalAmount;
-  record.paymentStatus = record.isDonation ? "donated" : "paid";
-  pushHistory(record, "completed", "Scrap verified and payment settled");
-
-  return structuredClone(record);
+  const response = await api.put(`/pickups/${id}/verify`, { verifiedCategories });
+  return response.data.data;
 };
 
 export default {
   getPickupsForRole,
   getJobsForCollector,
   getPickupById,
-  getAddressesForRole,
   createPickup,
+  uploadPickupImages,
   cancelPickup,
   rateCollector,
   acceptJob,

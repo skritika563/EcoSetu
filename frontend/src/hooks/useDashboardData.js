@@ -2,9 +2,20 @@
  * useDashboardData — loads everything the Home dashboard needs for the
  * signed-in user.
  *
- * Deliberately shaped like a real request so the swap to the API is contained:
- * replace the body of `fetchDashboard` with the Axios calls and every consuming
- * component keeps working, including its loading and error states.
+ * REAL as of the full-stack integration pass: `impact`, `upcomingPickup`
+ * (household/organization) and `today`/`nextJob`/`weeklyEarnings`/
+ * `categoryBreakdown` (collector) all come from GET /api/analytics/dashboard;
+ * `activity` is now also real, built from the signed-in user's own recent
+ * Pickup documents (see lib/pickupActivity.js) — it used to be a fully
+ * canned feed that would claim "Pickup completed +₹268 by Ramesh Kumar" no
+ * matter what the user had actually done, including right after scheduling
+ * a brand-new pickup.
+ *
+ * STILL MOCK, and documented exactly why: `marketplace` and `campaigns`
+ * previews. Both are deferred modules with no backend yet — there is
+ * nothing real to show. Home itself never fabricates data for them; the
+ * mock is just clearly scoped to these two fields rather than the whole
+ * payload.
  *
  * Returns { data, loading, error, refetch }.
  */
@@ -12,27 +23,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { getDashboardData } from "@/data/dashboardData";
+import api from "@/services/api";
 import { getMarketplacePreview } from "@/data/marketplaceData";
 import { getCampaigns } from "@/data/campaignData";
-import { getRecentActivity } from "@/data/activityData";
-
-/** Mock latency so loading states are real rather than theoretical. */
-const MOCK_LATENCY_MS = 450;
+import { getPickupsForRole, getJobsForCollector } from "@/services/pickupService";
+import { pickupToActivityItem } from "@/lib/pickupActivity";
 
 const fetchDashboard = async (role) => {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
+  const isCollector = role === "collector";
 
-  const dashboard = getDashboardData(role);
+  const [dashboardResponse, pickups] = await Promise.all([
+    api.get("/analytics/dashboard"),
+    // Activity is a nice-to-have — never block the whole dashboard on it.
+    (isCollector ? getJobsForCollector() : getPickupsForRole(role)).catch(() => []),
+  ]);
+  const dashboard = dashboardResponse.data.data;
+
   if (!dashboard) {
     throw new Error(`No dashboard data available for role "${role}".`);
   }
 
+  const activity = [...pickups]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 4)
+    .map((pickup) => pickupToActivityItem(pickup, { asCollector: isCollector }));
+
   return {
     ...dashboard,
+    // Deferred modules — see file header. `orders` for collectors already
+    // comes back as [] from the API itself (MarketplaceOrders' own module).
     marketplace: getMarketplacePreview(4),
     campaigns: getCampaigns(role, 3),
-    activity: getRecentActivity(role, 4),
+    activity,
   };
 };
 
