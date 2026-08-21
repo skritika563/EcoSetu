@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { normalizeCity, isValidCityName, toTitleCase } = require("../utils/textNormalize");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -11,10 +12,20 @@ const mongoose = require("mongoose");
  * Source: DATABASE_SCHEMA.md §3.1
  */
 
+/**
+ * Every `city` field below runs through the SAME `set` transform, so
+ * "Bengaluru" / "BENGALURU" / "bengalore " always land in the database as
+ * one canonical lowercase form — enforced at the schema layer, not
+ * re-implemented (and possibly forgotten) in every controller that writes
+ * one. Display casing is handled separately, at the API response boundary
+ * (see utils/textNormalize.js's toTitleCase).
+ */
+const CITY_FIELD = { type: String, default: null, set: normalizeCity };
+
 const addressSchema = new mongoose.Schema(
   {
     street: { type: String, default: null },
-    city: { type: String, default: null },
+    city: CITY_FIELD,
     state: { type: String, default: null },
     pincode: { type: String, default: null },
     coordinates: {
@@ -34,7 +45,13 @@ const addressSchema = new mongoose.Schema(
 const savedAddressSchema = new mongoose.Schema({
   label: { type: String, required: true, trim: true, maxlength: 50 },
   line: { type: String, required: true, trim: true },
-  city: { type: String, required: true, trim: true },
+  city: {
+    type: String,
+    required: true,
+    trim: true,
+    set: normalizeCity,
+    validate: { validator: isValidCityName, message: "Enter a valid city name" },
+  },
   state: { type: String, default: null, trim: true },
   pincode: {
     type: String,
@@ -174,6 +191,15 @@ userSchema.index({ isActive: 1 });
 userSchema.methods.toPublicProfile = function () {
   const obj = this.toObject();
   delete obj.__v;
+  // city is stored lowercase (normalizeCity, wired into the schema above)
+  // for consistent matching/search — title-cased here for display, the
+  // same way every other city-bearing response is (see
+  // services/marketplaceSerializer.js, services/pickupSerializer.js,
+  // controllers/addressController.js).
+  if (obj.address?.city) obj.address.city = toTitleCase(obj.address.city);
+  if (Array.isArray(obj.savedAddresses)) {
+    obj.savedAddresses = obj.savedAddresses.map((a) => ({ ...a, city: toTitleCase(a.city) }));
+  }
   return obj;
 };
 

@@ -14,7 +14,13 @@
  * Callers MUST populate `userId` and `collectorId` before serializing (see
  * pickupController's POPULATE_FIELDS), or `customer`/`collector` come back
  * null even when a party is set.
+ *
+ * `pickupAddress.city` is stored lowercase (utils/textNormalize.js's
+ * normalizeCity, wired into the schema) — title-cased here for display,
+ * same as marketplaceSerializer does for Product/MarketplaceOrder.
  */
+
+const { toTitleCase } = require("../utils/textNormalize");
 
 const serializeCollector = (collector) => {
   if (!collector || !collector._id) return null;
@@ -60,7 +66,9 @@ const serializePickup = (pickupDoc) => {
     images: (p.images ?? []).map((img) => ({ url: img.url, publicId: img.publicId, uploadedBy: img.uploadedBy })),
     notes: p.notes ?? null,
     isDonation: !!p.isDonation,
-    pickupAddress: p.pickupAddress,
+    pickupAddress: p.pickupAddress
+      ? { ...p.pickupAddress, city: toTitleCase(p.pickupAddress.city) }
+      : p.pickupAddress,
     customer: serializeCustomer(p.userId),
     collector: serializeCollector(p.collectorId),
     distanceKm: null, // no geolocation yet — frontend already renders this as optional

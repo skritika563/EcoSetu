@@ -52,6 +52,18 @@ const PickupDetailsPage = lazy(() => import("@/pages/pickups/PickupDetailsPage")
 const CollectorJobsPage = lazy(() => import("@/pages/pickups/CollectorJobsPage"));
 const CollectorJobDetailsPage = lazy(() => import("@/pages/pickups/CollectorJobDetailsPage"));
 
+// Marketplace module — every authenticated role browses, buys AND sells here.
+const MarketplaceBrowse = lazy(() => import("@/pages/marketplace/MarketplaceBrowse"));
+const ProductDetailsPage = lazy(() => import("@/pages/marketplace/ProductDetailsPage"));
+const WishlistPage = lazy(() => import("@/pages/marketplace/WishlistPage"));
+const MyListingsPage = lazy(() => import("@/pages/marketplace/MyListingsPage"));
+const ListingFormPage = lazy(() => import("@/pages/marketplace/ListingFormPage"));
+const PurchasesPage = lazy(() => import("@/pages/marketplace/PurchasesPage"));
+const OrdersReceivedPage = lazy(() => import("@/pages/marketplace/OrdersReceivedPage"));
+const OrderDetailsPage = lazy(() => import("@/pages/marketplace/OrderDetailsPage"));
+const SellerProfilePage = lazy(() => import("@/pages/marketplace/SellerProfilePage"));
+const MarketplaceMessages = lazy(() => import("@/pages/marketplace/MarketplaceMessages"));
+
 /* ─── Admin placeholder — replaced by the Admin module ───────────────────── */
 function AdminPlaceholder() {
   const { user } = useAuth();
@@ -144,6 +156,36 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["collector", "admin"]} />}>
             <Route path="/jobs" element={<CollectorJobsPage />} />
             <Route path="/jobs/:jobId" element={<CollectorJobDetailsPage />} />
+          </Route>
+
+          {/* Marketplace — BUYING is open to every signed-in role (household,
+              organization, collector). Admin has no marketplace surface and
+              simply isn't routed here. */}
+          <Route element={<ProtectedRoute allowedRoles={["household", "organization", "collector"]} />}>
+            <Route path="/marketplace" element={<MarketplaceBrowse />} />
+            <Route path="/marketplace/product/:productId" element={<ProductDetailsPage />} />
+            <Route path="/marketplace/seller/:sellerId" element={<SellerProfilePage />} />
+            <Route path="/marketplace/wishlist" element={<WishlistPage />} />
+            <Route path="/marketplace/purchases" element={<PurchasesPage />} />
+            <Route path="/marketplace/purchases/:orderId" element={<OrderDetailsPage />} />
+            <Route path="/marketplace/messages" element={<MarketplaceMessages />} />
+          </Route>
+
+          {/* Marketplace — SELLING is collector-only. Household/organization
+              never reach these pages, even by direct URL — matches the
+              backend's own role gate on every seller-side endpoint (see
+              marketplaceRoutes.js's `sellerOnly`). */}
+          <Route element={<ProtectedRoute allowedRoles={["collector"]} />}>
+            <Route path="/marketplace/listings" element={<MyListingsPage />} />
+            <Route path="/marketplace/listings/new" element={<ListingFormPage />} />
+            <Route path="/marketplace/listings/:productId/edit" element={<ListingFormPage />} />
+            {/* Same OrderDetailsPage as the buyer route above — it adapts to
+                whether the viewer is the buyer or the seller, using the
+                server-supplied viewerRole. Only the "orders received" list
+                itself (seller-only) needs the role gate; the detail page is
+                already scoped to the order's own two parties server-side. */}
+            <Route path="/marketplace/orders" element={<OrdersReceivedPage />} />
+            <Route path="/marketplace/orders/:orderId" element={<OrderDetailsPage />} />
           </Route>
 
           {/* Role-scoped dashboards — derived from ROLE_META so routes and role

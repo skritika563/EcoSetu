@@ -3,21 +3,33 @@ const { getRazorpay } = require("../config/razorpay");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
- * Razorpay Service — instant-pickup platform fee
+ * Razorpay Service — instant-pickup fee AND marketplace order payments
  * ──────────────────────────────────────────────────────────────────────────────
  *
  * The ONLY place that talks to the Razorpay SDK or does signature
- * verification. The fee amount is a fixed constant here (never accepted
- * from the client) — mirrors the same "never trust a client-supplied
- * amount" rule pricingService.js applies to scrap payouts.
+ * verification. Two order types share this one service because they share
+ * the exact same trust model:
  *
- * Flow: order created here BEFORE the pickup exists (there's no pickup id
- * yet to attach it to) → customer pays via Razorpay Checkout in the browser
- * → the browser gets back {razorpay_order_id, razorpay_payment_id,
- * razorpay_signature} → those three values are sent to POST /api/pickups
- * alongside the booking form → pickupController verifies the signature here
- * before creating the pickup at all. A pickup is never created off an
- * unverified or missing payment for an instant pickup.
+ *   1. Instant-pickup fee — a FIXED amount (createInstantFeeOrder).
+ *   2. Marketplace purchase — a VARIABLE amount computed server-side from
+ *      the live listing price × quantity (createMarketplaceCheckoutOrder).
+ *
+ * In both cases: the client never supplies an amount. The server creates a
+ * Razorpay order for a total IT computed, the browser can only complete
+ * checkout for that exact order (Razorpay enforces the amount, not us), and
+ * the resulting payment is only trusted once its signature verifies against
+ * that specific order id using our key secret. That's what makes the
+ * eventual charge trustworthy without a second call back to Razorpay to
+ * double-check the amount.
+ *
+ * Flow (both cases): order created here BEFORE the thing being paid for
+ * exists (there's no pickup/marketplace-order id yet to attach it to) →
+ * customer pays via Razorpay Checkout in the browser → the browser gets
+ * back {razorpay_order_id, razorpay_payment_id, razorpay_signature} → those
+ * three values are sent to the real creation endpoint (POST /api/pickups or
+ * POST /api/marketplace/orders) → the controller verifies the signature here
+ * before creating anything. Nothing is ever created off an unverified or
+ * missing payment when one is required.
  */
 
 const INSTANT_FEE_RUPEES = 30;
@@ -74,4 +86,60 @@ const verifyPaymentSignature = ({ orderId, paymentId, signature }) => {
   return crypto.timingSafeEqual(expectedBuf, actualBuf);
 };
 
-module.exports = { INSTANT_FEE_RUPEES, createInstantFeeOrder, verifyPaymentSignature };
+/**
+ * Create a Razorpay order for a marketplace purchase. The amount is
+ * whatever the CALLER computed server-side (marketplacePricingService) —
+ * this function never re-derives or trusts a price itself, it only creates
+ * the order Razorpay will charge exactly.
+ *
+ * @param {{ userId: string, amountRupees: number, productId: string }} params
+ * @returns {Promise<{orderId: string, amount: number, currency: string}>}
+ */
+const createMarketplaceCheckoutOrder = async ({ userId, amountRupees, productId }) => {
+  const razorpay = getRazorpay();
+  if (!razorpay) {
+    const error = new Error("Payments are temporarily unavailable. Please try again shortly.");
+    error.statusCode = 503;
+    error.code = "PAYMENTS_UNAVAILABLE";
+    throw error;
+  }
+
+  const order = await razorpay.orders.create({
+    amount: toPaise(amountRupees),
+    currency: CURRENCY,
+    receipt: `mkt_${productId}_${Date.now()}`.slice(0, 40),
+    notes: { purpose: "marketplace_order", userId: String(userId), productId: String(productId) },
+  });
+
+  return { orderId: order.id, amount: order.amount, currency: order.currency };
+};
+
+/**
+ * Best-effort refund for a marketplace payment that can no longer be
+ * fulfilled — e.g. the buyer's payment verified successfully, but the last
+ * unit of stock was reserved by someone else in the moment between payment
+ * and order creation. Never throws: a failed refund attempt is logged
+ * loudly (it needs a human to reconcile) rather than crashing the request
+ * that's already reporting the failure to the buyer.
+ */
+const refundPayment = async (paymentId, amountRupees) => {
+  const razorpay = getRazorpay();
+  if (!razorpay) {
+    console.error(`CRITICAL: cannot refund payment ${paymentId} — Razorpay client unavailable. Needs manual refund.`);
+    return null;
+  }
+  try {
+    return await razorpay.payments.refund(paymentId, { amount: toPaise(amountRupees) });
+  } catch (error) {
+    console.error(`CRITICAL: refund failed for payment ${paymentId}:`, error.message, "-- needs manual refund.");
+    return null;
+  }
+};
+
+module.exports = {
+  INSTANT_FEE_RUPEES,
+  createInstantFeeOrder,
+  createMarketplaceCheckoutOrder,
+  verifyPaymentSignature,
+  refundPayment,
+};

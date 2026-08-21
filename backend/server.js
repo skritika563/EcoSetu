@@ -18,6 +18,7 @@ const { initializeCloudinary } = require("./config/cloudinary");
 const { initializeGemini } = require("./config/gemini");
 const { initializeRazorpay } = require("./config/razorpay");
 const seedScrapRates = require("./scripts/seedScrapRates");
+const seedMarketplace = require("./scripts/seedMarketplace");
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,11 @@ const startServer = async () => {
 
     // 1b. Seed default scrap rates if the collection is empty (idempotent)
     await seedScrapRates();
+
+    // 1c. Seed starter marketplace listings if none exist (idempotent).
+    // Attributed to real users, so a fresh database still has something to
+    // browse — see scripts/seedMarketplace.js.
+    await seedMarketplace();
 
     // 2. Initialize Firebase Admin SDK
     initializeFirebase();

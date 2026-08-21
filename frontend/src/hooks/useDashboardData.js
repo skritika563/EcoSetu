@@ -11,11 +11,12 @@
  * matter what the user had actually done, including right after scheduling
  * a brand-new pickup.
  *
- * STILL MOCK, and documented exactly why: `marketplace` and `campaigns`
- * previews. Both are deferred modules with no backend yet — there is
- * nothing real to show. Home itself never fabricates data for them; the
- * mock is just clearly scoped to these two fields rather than the whole
- * payload.
+ * `marketplace` is now REAL too, since the Marketplace module landed — the
+ * preview shows actual listings from /api/marketplace/products.
+ *
+ * STILL MOCK, and documented exactly why: only `campaigns`. Campaigns is a
+ * deferred module with no backend yet, so there is nothing real to show.
+ * Home never fabricates data for it beyond that one clearly-scoped field.
  *
  * Returns { data, loading, error, refetch }.
  */
@@ -24,18 +25,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/services/api";
-import { getMarketplacePreview } from "@/data/marketplaceData";
 import { getCampaigns } from "@/data/campaignData";
 import { getPickupsForRole, getJobsForCollector } from "@/services/pickupService";
+import { getProducts } from "@/services/productService";
 import { pickupToActivityItem } from "@/lib/pickupActivity";
 
 const fetchDashboard = async (role) => {
   const isCollector = role === "collector";
 
-  const [dashboardResponse, pickups] = await Promise.all([
+  const [dashboardResponse, pickups, marketplace] = await Promise.all([
     api.get("/analytics/dashboard"),
-    // Activity is a nice-to-have — never block the whole dashboard on it.
+    // Both of these are nice-to-haves — never block the whole dashboard on
+    // either one, so a marketplace hiccup can't take Home down.
     (isCollector ? getJobsForCollector() : getPickupsForRole(role)).catch(() => []),
+    getProducts({ limit: 4, sort: "newest" }).catch(() => ({ products: [] })),
   ]);
   const dashboard = dashboardResponse.data.data;
 
@@ -50,9 +53,9 @@ const fetchDashboard = async (role) => {
 
   return {
     ...dashboard,
-    // Deferred modules — see file header. `orders` for collectors already
-    // comes back as [] from the API itself (MarketplaceOrders' own module).
-    marketplace: getMarketplacePreview(4),
+    marketplace: marketplace.products ?? [],
+    // Campaigns is still deferred — see file header. `orders` for collectors
+    // already comes back as [] from the API itself.
     campaigns: getCampaigns(role, 3),
     activity,
   };

@@ -32,7 +32,7 @@ import {
 const GENERAL_NAV = [
   { key: "home", label: "Home", to: "/", icon: Home, available: true },
   { key: "pickups", label: "Pickups", to: "/pickups", icon: Truck, available: true },
-  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true },
   { key: "rewards", label: "Rewards", to: "/rewards", icon: Gift, available: false },
 ];
 
@@ -46,7 +46,7 @@ const ORGANIZATION_NAV = [
 const COLLECTOR_NAV = [
   { key: "home", label: "Home", to: "/", icon: Home, available: true },
   { key: "jobs", label: "Jobs", to: "/jobs", icon: ClipboardList, available: true },
-  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true },
   { key: "earnings", label: "Earnings", to: "/earnings", icon: Wallet, available: false },
 ];
 
@@ -77,14 +77,14 @@ export const getPrimaryNav = (role) => {
  */
 const HOUSEHOLD_ACTIONS = [
   { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
-  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true, accent: "purple" },
   { key: "campaigns", label: "Nearby Campaigns", to: "/campaigns", icon: MapPin, available: false, accent: "orange" },
   { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "teal" },
 ];
 
 const ORGANIZATION_ACTIONS = [
   { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
-  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: false, accent: "purple" },
+  { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true, accent: "purple" },
   { key: "create-campaign", label: "Create Campaign", to: "/campaigns/new", icon: Megaphone, available: false, accent: "orange" },
   { key: "impact", label: "View Impact", to: "/rewards", icon: BarChart3, available: false, accent: "teal" },
 ];
@@ -92,7 +92,7 @@ const ORGANIZATION_ACTIONS = [
 const COLLECTOR_ACTIONS = [
   { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: true, accent: "blue" },
   { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "purple" },
-  { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: false, accent: "orange" },
+  { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: true, accent: "orange" },
   { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: false, accent: "teal" },
 ];
 

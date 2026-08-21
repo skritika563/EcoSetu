@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { normalizeCity, isValidCityName } = require("../utils/textNormalize");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -30,7 +31,15 @@ const addressSubSchema = new mongoose.Schema(
   {
     label: { type: String, default: null },
     line: { type: String, required: true },
-    city: { type: String, required: true },
+    // Canonical lowercase in storage (see utils/textNormalize.js) — same
+    // treatment as every other city field in the app, so a collector's
+    // "nearby" job matching isn't defeated by casing differences.
+    city: {
+      type: String,
+      required: true,
+      set: normalizeCity,
+      validate: { validator: isValidCityName, message: "Enter a valid city name" },
+    },
     state: { type: String, default: null },
     pincode: { type: String, default: null },
     landmark: { type: String, default: null },

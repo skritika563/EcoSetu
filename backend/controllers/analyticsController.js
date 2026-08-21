@@ -1,5 +1,6 @@
 const Pickup = require("../models/Pickup");
 const { CO2_PER_KG } = require("../services/ecoScoreService");
+const { toTitleCase } = require("../utils/textNormalize");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ const toHeroShape = (pickup, { asCustomerView }) => {
     status: pickup.status,
     pickupType: pickup.pickupType,
     estimatedWeightKg: pickup.estimatedWeight ?? null,
-    address: { line: pickup.pickupAddress?.line, city: pickup.pickupAddress?.city },
+    address: { line: pickup.pickupAddress?.line, city: toTitleCase(pickup.pickupAddress?.city) },
   };
 
   if (asCustomerView) {

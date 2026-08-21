@@ -7,6 +7,7 @@ const { notify } = require("../services/notificationService");
 const { uploadImageBuffer, deleteImage } = require("../services/imageUploadService");
 const { MAX_IMAGES_PER_PICKUP } = require("../middleware/uploadMiddleware");
 const { INSTANT_FEE_RUPEES, verifyPaymentSignature } = require("../services/razorpayService");
+const { isValidCityName } = require("../utils/textNormalize");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -74,6 +75,17 @@ const createPickup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Pickup address must include at least a line and a city.",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+    // Checked up front, before any payment is touched — an instant pickup
+    // charges a real fee a few lines below this, and a malformed city name
+    // should never get that far only to fail at Pickup.create() after the
+    // card's already been charged.
+    if (!isValidCityName(pickupAddress.city)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid city name.",
         error: { code: "VALIDATION_ERROR" },
       });
     }
@@ -177,6 +189,13 @@ const createPickup = async (req, res) => {
         success: false,
         message: "This payment has already been used for another pickup.",
         error: { code: "CONFLICT" },
+      });
+    }
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed.",
+        error: { code: "VALIDATION_ERROR", details: Object.values(error.errors).map((e) => e.message) },
       });
     }
     console.error("Create pickup error:", error.message);

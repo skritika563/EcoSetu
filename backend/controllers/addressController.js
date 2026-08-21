@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { toTitleCase } = require("../utils/textNormalize");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -21,7 +22,9 @@ const serializeAddress = (addr) => ({
   id: addr._id.toString(),
   label: addr.label,
   line: addr.line,
-  city: addr.city,
+  // Stored lowercase (utils/textNormalize.js's normalizeCity, wired into
+  // the schema) — title-cased here for display, never mutating storage.
+  city: toTitleCase(addr.city),
   state: addr.state,
   pincode: addr.pincode,
   landmark: addr.landmark,
