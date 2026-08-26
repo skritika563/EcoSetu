@@ -61,8 +61,22 @@ const ListingFormPage = lazy(() => import("@/pages/marketplace/ListingFormPage")
 const PurchasesPage = lazy(() => import("@/pages/marketplace/PurchasesPage"));
 const OrdersReceivedPage = lazy(() => import("@/pages/marketplace/OrdersReceivedPage"));
 const OrderDetailsPage = lazy(() => import("@/pages/marketplace/OrderDetailsPage"));
-const SellerProfilePage = lazy(() => import("@/pages/marketplace/SellerProfilePage"));
 const MarketplaceMessages = lazy(() => import("@/pages/marketplace/MarketplaceMessages"));
+
+// UserProfilePage is shared, not marketplace- or campaigns-specific — see
+// its own header comment. Two routes below both render it.
+const UserProfilePage = lazy(() => import("@/pages/common/UserProfilePage"));
+
+// Campaigns module — every authenticated role (except admin) browses, joins
+// AND volunteers here; only organization accounts (NGO/School/University —
+// see User.organizationType) create and manage.
+const CampaignsBrowse = lazy(() => import("@/pages/campaigns/CampaignsBrowse"));
+const CampaignDetailsPage = lazy(() => import("@/pages/campaigns/CampaignDetailsPage"));
+const MyParticipationPage = lazy(() => import("@/pages/campaigns/MyParticipationPage"));
+const CertificatePage = lazy(() => import("@/pages/campaigns/CertificatePage"));
+const MyCampaignsPage = lazy(() => import("@/pages/campaigns/MyCampaignsPage"));
+const CampaignFormPage = lazy(() => import("@/pages/campaigns/CampaignFormPage"));
+const CampaignManagePage = lazy(() => import("@/pages/campaigns/CampaignManagePage"));
 
 /* ─── Admin placeholder — replaced by the Admin module ───────────────────── */
 function AdminPlaceholder() {
@@ -164,7 +178,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["household", "organization", "collector"]} />}>
             <Route path="/marketplace" element={<MarketplaceBrowse />} />
             <Route path="/marketplace/product/:productId" element={<ProductDetailsPage />} />
-            <Route path="/marketplace/seller/:sellerId" element={<SellerProfilePage />} />
+            <Route path="/marketplace/seller/:sellerId" element={<UserProfilePage />} />
             <Route path="/marketplace/wishlist" element={<WishlistPage />} />
             <Route path="/marketplace/purchases" element={<PurchasesPage />} />
             <Route path="/marketplace/purchases/:orderId" element={<OrderDetailsPage />} />
@@ -186,6 +200,36 @@ function App() {
                 already scoped to the order's own two parties server-side. */}
             <Route path="/marketplace/orders" element={<OrdersReceivedPage />} />
             <Route path="/marketplace/orders/:orderId" element={<OrderDetailsPage />} />
+          </Route>
+
+          {/* Campaigns — BROWSING, JOINING and VOLUNTEERING are open to
+              every non-admin role (household, organization, collector).
+              Admin has no campaign surface and simply isn't routed here —
+              hitting one of these URLs redirects it to its own dashboard,
+              same as Marketplace's precedent. */}
+          <Route element={<ProtectedRoute allowedRoles={["household", "organization", "collector"]} />}>
+            <Route path="/campaigns" element={<CampaignsBrowse />} />
+            <Route path="/campaigns/mine/participation" element={<MyParticipationPage />} />
+            <Route path="/campaigns/:campaignId" element={<CampaignDetailsPage />} />
+            <Route path="/campaigns/:campaignId/certificate" element={<CertificatePage />} />
+            {/* Same shared page as the Marketplace seller route above — open
+                to every non-admin role since the backend endpoint already is
+                (see userRoutes.js), even though the only real linker today is
+                CampaignManagePage's organizer-only Participants/Volunteers
+                panel. */}
+            <Route path="/campaigns/users/:userId" element={<UserProfilePage />} />
+          </Route>
+
+          {/* Campaigns — CREATING and MANAGING is organization-only
+              (NGO/School/University). Household/collector never reach
+              these pages, even by direct URL — matches the backend's own
+              role gate on every organizer-side endpoint (see
+              campaignRoutes.js's `organizerOnly`). */}
+          <Route element={<ProtectedRoute allowedRoles={["organization"]} />}>
+            <Route path="/campaigns/mine" element={<MyCampaignsPage />} />
+            <Route path="/campaigns/new" element={<CampaignFormPage />} />
+            <Route path="/campaigns/:campaignId/edit" element={<CampaignFormPage />} />
+            <Route path="/campaigns/:campaignId/manage" element={<CampaignManagePage />} />
           </Route>
 
           {/* Role-scoped dashboards — derived from ROLE_META so routes and role

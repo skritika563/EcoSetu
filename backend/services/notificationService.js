@@ -14,9 +14,9 @@ const Notification = require("../models/Notification");
  * the pickup action that triggered it, so callers don't need to await this in
  * their own try/catch — errors are logged here and swallowed.
  */
-const notify = async ({ userId, type, title, description, relatedPickup = null }) => {
+const notify = async ({ userId, type, title, description, relatedPickup = null, relatedCampaign = null }) => {
   try {
-    await Notification.create({ userId, type, title, description, relatedPickup });
+    await Notification.create({ userId, type, title, description, relatedPickup, relatedCampaign });
   } catch (error) {
     console.error("Failed to create notification:", error.message);
   }

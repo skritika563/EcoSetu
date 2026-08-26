@@ -11,12 +11,10 @@
  * matter what the user had actually done, including right after scheduling
  * a brand-new pickup.
  *
- * `marketplace` is now REAL too, since the Marketplace module landed — the
- * preview shows actual listings from /api/marketplace/products.
- *
- * STILL MOCK, and documented exactly why: only `campaigns`. Campaigns is a
- * deferred module with no backend yet, so there is nothing real to show.
- * Home never fabricates data for it beyond that one clearly-scoped field.
+ * `marketplace` and `campaigns` are both REAL now, since the Marketplace
+ * and Campaigns modules landed — the previews show actual listings from
+ * /api/marketplace/products and actual drives from /api/campaigns (or the
+ * organizer's own via /api/campaigns/mine).
  *
  * Returns { data, loading, error, refetch }.
  */
@@ -25,20 +23,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/services/api";
-import { getCampaigns } from "@/data/campaignData";
 import { getPickupsForRole, getJobsForCollector } from "@/services/pickupService";
 import { getProducts } from "@/services/productService";
+import * as campaignService from "@/services/campaignService";
 import { pickupToActivityItem } from "@/lib/pickupActivity";
+
+/** Home only ever shows 3 — organizers see their own, everyone else sees nearby active/upcoming drives. */
+const getCampaignsPreview = async (role) => {
+  if (role === "organization") {
+    const campaigns = await campaignService.getMyCampaigns();
+    return campaigns.slice(0, 3);
+  }
+  if (role === "admin") return [];
+  const { campaigns } = await campaignService.getCampaigns({ sort: "starting-soon", limit: 3 });
+  return campaigns;
+};
 
 const fetchDashboard = async (role) => {
   const isCollector = role === "collector";
 
-  const [dashboardResponse, pickups, marketplace] = await Promise.all([
+  const [dashboardResponse, pickups, marketplace, campaigns] = await Promise.all([
     api.get("/analytics/dashboard"),
-    // Both of these are nice-to-haves — never block the whole dashboard on
-    // either one, so a marketplace hiccup can't take Home down.
+    // These three are nice-to-haves — never block the whole dashboard on
+    // any one of them, so a marketplace/campaign hiccup can't take Home down.
     (isCollector ? getJobsForCollector() : getPickupsForRole(role)).catch(() => []),
     getProducts({ limit: 4, sort: "newest" }).catch(() => ({ products: [] })),
+    getCampaignsPreview(role).catch(() => []),
   ]);
   const dashboard = dashboardResponse.data.data;
 
@@ -54,9 +64,7 @@ const fetchDashboard = async (role) => {
   return {
     ...dashboard,
     marketplace: marketplace.products ?? [],
-    // Campaigns is still deferred — see file header. `orders` for collectors
-    // already comes back as [] from the API itself.
-    campaigns: getCampaigns(role, 3),
+    campaigns,
     activity,
   };
 };

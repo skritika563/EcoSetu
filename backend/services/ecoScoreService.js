@@ -16,6 +16,12 @@
 const SCORE_RULES = {
   pickupCompleted: 10, // flat, per completed pickup
   perKgRecycled: 2, // per kg of verified weight
+  // These two match ECO_SCORE_RULES.campaign / .contribution from the
+  // original frontend mock (frontend/src/data/sustainabilityData.js) —
+  // campaigns were anticipated there before this module existed; the
+  // numbers are carried over exactly rather than re-invented.
+  campaignParticipation: 10, // flat, per campaign joined/approved
+  campaignVolunteering: 15, // flat, per volunteer registration approved
 };
 
 /** Eco Points awarded per point of Eco Activity Score. */
@@ -35,4 +41,24 @@ const scoreForCompletedPickup = (totalWeightKg = 0) => {
   return { contributionScore, ecoPoints };
 };
 
-module.exports = { SCORE_RULES, POINTS_PER_SCORE, CO2_PER_KG, scoreForCompletedPickup };
+/**
+ * Score for joining/being approved on a campaign — a flat award,
+ * distinguished only by whether it's a plain participation or a
+ * volunteer registration (volunteering carries a real commitment beyond
+ * showing up, so it's worth more — same weighting the original mock used).
+ * @param {"participant"|"volunteer"} participationType
+ */
+const scoreForCampaignParticipation = (participationType) => {
+  const contributionScore =
+    participationType === "volunteer" ? SCORE_RULES.campaignVolunteering : SCORE_RULES.campaignParticipation;
+  const ecoPoints = Math.round(contributionScore * POINTS_PER_SCORE);
+  return { contributionScore, ecoPoints };
+};
+
+module.exports = {
+  SCORE_RULES,
+  POINTS_PER_SCORE,
+  CO2_PER_KG,
+  scoreForCompletedPickup,
+  scoreForCampaignParticipation,
+};

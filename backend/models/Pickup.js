@@ -95,6 +95,16 @@ const pickupSchema = new mongoose.Schema(
     // ── Parties ─────────────────────────────────────────────────────────────
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     collectorId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    // Optional: this pickup was booked in service of a specific Campaign
+    // (see models/Campaign.js) — a household/organization can tag a booking
+    // as "for" a drive they're participating in. Only ever set at creation
+    // by the booking user themselves (campaignController never writes this).
+    // When such a pickup completes, its verified weight is credited to the
+    // campaign's collectedWeightKg (see campaignController.creditPickupToCampaign,
+    // called from pickupController.verifyPickup) — the SAME real, verified
+    // weight the customer/collector already produced, never a second,
+    // parallel figure invented for the campaign.
+    relatedCampaign: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null, index: true },
 
     // ── Type & status ───────────────────────────────────────────────────────
     pickupType: { type: String, enum: ["scheduled", "instant"], default: "scheduled" },

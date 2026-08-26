@@ -27,6 +27,9 @@ const notificationSchema = new mongoose.Schema(
     // Optional link to the record this notification is about (e.g. a Pickup),
     // so a future "tap to open" affordance doesn't need a schema change.
     relatedPickup: { type: mongoose.Schema.Types.ObjectId, ref: "Pickup", default: null },
+    // Same idea for Campaigns — join confirmations, volunteer status
+    // changes, campaign updates. Additive, mirrors relatedPickup exactly.
+    relatedCampaign: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null },
   },
   { timestamps: true }
 );

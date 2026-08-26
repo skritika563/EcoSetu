@@ -19,6 +19,7 @@ const { initializeGemini } = require("./config/gemini");
 const { initializeRazorpay } = require("./config/razorpay");
 const seedScrapRates = require("./scripts/seedScrapRates");
 const seedMarketplace = require("./scripts/seedMarketplace");
+const seedCampaigns = require("./scripts/seedCampaigns");
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,10 @@ const startServer = async () => {
     // Attributed to real users, so a fresh database still has something to
     // browse — see scripts/seedMarketplace.js.
     await seedMarketplace();
+
+    // 1d. Seed starter campaigns if none exist (idempotent). Attributed to
+    // real organization accounts — see scripts/seedCampaigns.js.
+    await seedCampaigns();
 
     // 2. Initialize Firebase Admin SDK
     initializeFirebase();

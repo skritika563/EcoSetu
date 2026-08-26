@@ -68,6 +68,11 @@ const STATUS_MAP = {
   active: { label: "Active", tone: "success" },
   upcoming: { label: "Upcoming", tone: "info" },
   cancelled: { label: "Cancelled", tone: "danger" },
+  // Campaign-only status — a drive an organizer hasn't published yet.
+  // Kept here rather than a second status map since active/upcoming/
+  // completed/cancelled above are already shared with campaigns; only this
+  // one key was missing.
+  draft: { label: "Draft", tone: "neutral" },
 };
 
 export const getStatus = (key) => {

@@ -12,11 +12,15 @@
  * - paymentRoutes.js        → /api/payments/* (instant-pickup fee, Razorpay)  ✅
  * - marketplaceRoutes.js    → /api/marketplace/* (products, wishlist,
  *                             orders, seller profiles, AI listing assist)     ✅
+ * - campaignRoutes.js       → /api/campaigns/* (browse/join/volunteer,
+ *                             organizer management, analytics, gallery,
+ *                             certificates)                                  ✅
+ * - userRoutes.js           → /api/users/* (one general public profile,
+ *                             shared by Marketplace's seller view and
+ *                             Campaigns' participant/volunteer lookup)       ✅
  *
- * Not yet built (Campaigns/Admin deferred):
- * - userRoutes.js           → /api/users/*
+ * Not yet built (Admin deferred):
  * - organizationRoutes.js   → /api/organizations/*
- * - driveRoutes.js          → /api/drives/* (Campaigns)
  * - reviewRoutes.js         → /api/reviews/*
  * - adminRoutes.js          → /api/admin/*
  * - messageRoutes.js        → /api/marketplace/messages/* (see

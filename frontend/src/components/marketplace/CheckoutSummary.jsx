@@ -91,14 +91,24 @@ const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAdd
 
         <div className="space-y-4">
           {/* Seller */}
+          {/* min-w-0 on each value span is load-bearing, not decoration: a
+              flex item's default min-width is "auto" (≈ its content's
+              full width), which silently overrides `truncate`'s
+              white-space:nowrap and lets a long seller name push the row
+              wider than the dialog instead of ellipsing — the overflow
+              then shoves the price row's "₹" off to the right too. Classic
+              Windows scrollbars (Edge, and Chrome-on-Windows) take up real
+              layout width where Mac's overlay ones don't, so the same bug
+              bites harder there — but the fix is min-w-0, not a
+              browser-specific patch. */}
           <div className="rounded-xl border border-border bg-muted/25 p-3 text-sm">
             <div className="flex justify-between gap-3">
-              <span className="text-muted-foreground">Seller</span>
-              <span className="truncate font-medium text-foreground">{product.seller?.name}</span>
+              <span className="shrink-0 text-muted-foreground">Seller</span>
+              <span className="min-w-0 truncate font-medium text-foreground">{product.seller?.name}</span>
             </div>
             <div className="mt-1.5 flex justify-between gap-3">
-              <span className="text-muted-foreground">Unit price</span>
-              <span className="font-medium text-foreground">
+              <span className="shrink-0 text-muted-foreground">Unit price</span>
+              <span className="min-w-0 truncate font-medium text-foreground">
                 {formatCurrency(product.price, { decimals: 2 })}
                 {product.unit === "kg" && <span className="text-muted-foreground">/kg</span>}
               </span>

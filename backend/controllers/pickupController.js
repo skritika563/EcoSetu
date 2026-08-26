@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const Pickup = require("../models/Pickup");
 const User = require("../models/User");
+const Campaign = require("../models/Campaign");
 const { serializePickup, POPULATE_FIELDS } = require("../services/pickupSerializer");
 const { calculatePickupTotal, getServiceCharge } = require("../services/pricingService");
 const { scoreForCompletedPickup } = require("../services/ecoScoreService");
@@ -66,6 +68,7 @@ const createPickup = async (req, res) => {
       imageCount = 0,
       notes,
       isDonation = false,
+      relatedCampaign,
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
@@ -95,6 +98,20 @@ const createPickup = async (req, res) => {
         message: "Pickup date is required.",
         error: { code: "VALIDATION_ERROR" },
       });
+    }
+    // Optional: this booking is "for" a specific campaign drive (see
+    // models/Pickup.js's relatedCampaign). Only a real, existing campaign
+    // id is ever accepted — never trusted blindly, but also never required
+    // to belong to a campaign the user has joined, since a drive may
+    // welcome collection from anyone.
+    if (relatedCampaign !== undefined && relatedCampaign !== null && relatedCampaign !== "") {
+      if (!mongoose.isValidObjectId(relatedCampaign) || !(await Campaign.exists({ _id: relatedCampaign }))) {
+        return res.status(404).json({
+          success: false,
+          message: "That campaign could not be found.",
+          error: { code: "NOT_FOUND" },
+        });
+      }
     }
     const invalidCategories = (estimatedCategories || []).filter((c) => !VALID_CATEGORIES.includes(c));
     if (invalidCategories.length > 0) {
@@ -161,6 +178,7 @@ const createPickup = async (req, res) => {
       imageCount,
       notes: notes || null,
       isDonation,
+      relatedCampaign: relatedCampaign || null,
       serviceCharge: getServiceCharge(pickupType),
       instantFeePayment,
       statusHistory: [
@@ -669,6 +687,30 @@ const verifyPickup = async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
       $inc: { totalPickups: 1, totalWeightRecycled: totalWeightKg, totalEarnings: totalAmount },
     });
+
+    // This pickup was booked "for" a campaign (see relatedCampaign above) —
+    // credit the SAME real, verified weight this pickup just produced,
+    // never a second figure invented for the campaign. Best-effort: a
+    // failure here must never undo an already-completed, already-paid pickup.
+    if (pickup.relatedCampaign) {
+      await Campaign.updateOne(
+        { _id: pickup.relatedCampaign },
+        {
+          $inc: { collectedWeightKg: totalWeightKg },
+          $push: {
+            collectionLog: {
+              $each: lines.map((l) => ({
+                category: l.category,
+                weightKg: l.weightKg,
+                source: "pickup",
+                relatedPickup: pickup._id,
+                recordedBy: req.user._id,
+              })),
+            },
+          },
+        }
+      ).catch((err) => console.error("Campaign collection credit failed:", err.message));
+    }
 
     await notify({
       userId: pickup.userId._id,
