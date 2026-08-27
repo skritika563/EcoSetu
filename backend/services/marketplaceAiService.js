@@ -12,12 +12,20 @@ const Product = require("../models/Product");
  * unusable, this throws and the caller surfaces a plain failure. It never
  * substitutes invented text and passes it off as a model result.
  *
- * MODEL CHOICE: `gemini-flash-latest` is an alias that tracks Google's current
- * flash model, so this doesn't break the way a pinned version does — several
- * previously-valid pinned ids (gemini-2.0-flash, gemini-1.5-flash,
- * gemini-2.5-flash) are already 404 for new keys. The fallback chain below
- * exists for the same reason: if the alias moves or is regionally
- * unavailable, the next candidate is tried before giving up.
+ * MODEL CHOICE: `gemini-flash-lite-latest` is first because it's the one
+ * candidate actually confirmed fast and reliable for this key — measured at
+ * ~1.8s per real call. `gemini-flash-latest` and `gemini-3-flash-preview`
+ * are ALIASES too (so they don't go stale the way a pinned version does —
+ * several previously-valid pinned ids, gemini-2.0-flash/gemini-2.5-flash/
+ * gemini-1.5-flash, are already 404 for new keys), but both were measured
+ * hanging — no response, no error, for 20s+ — with this key specifically,
+ * which is worse than a clean failure: with no per-attempt timeout here,
+ * hitting one of those first would make every call to this service wait out
+ * that same hang before ever reaching the model that actually works (see
+ * services/geminiService.js's classifyWasteImage, which added an explicit
+ * per-attempt timeout for exactly this reason). Keeping them later in the
+ * chain still lets a future key/region where they behave normally fall
+ * through to them.
  *
  * The model only ever SUGGESTS. Its output lands in an editable form field
  * for the seller to accept, rewrite or ignore — nothing here is auto-applied,
@@ -25,7 +33,7 @@ const Product = require("../models/Product");
  * reach the database.
  */
 
-const MODEL_CANDIDATES = ["gemini-flash-latest", "gemini-3-flash-preview", "gemini-flash-lite-latest"];
+const MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3-flash-preview"];
 
 let client = null;
 const getClient = () => {

@@ -580,7 +580,7 @@ const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlot
     {estimate ? (
       <div className="rounded-xl border border-border bg-muted/25 p-3.5">
         <p className="text-sm font-medium text-foreground">
-          {/* A single category (or none selected → "mixed") always prices to
+          {/* A single category (or none selected → "others") always prices to
               one exact figure — a "₹6–₹6" range reads like a bug, not a
               guess, so only show a dash-range when the category mix actually
               makes the low/high rate differ. */}

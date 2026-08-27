@@ -14,17 +14,19 @@
  * stays local and synchronous, which every component here still assumes.
  *
  * RATE SOURCE:
- * Base ₹/kg rates match DATABASE_SCHEMA.md §3.3 ScrapRates "Default Seed
- * Data" — the numbers already agreed as EcoSetu's canonical pricing model,
- * which in turn track typical unorganized-sector kabadiwala rates across
- * Indian metros as of 2024–25 (plastic/PET and metal command the highest
- * ₹/kg; glass and mixed waste the lowest). Pickups pay the BASE rate only —
- * `marketMultiplier` and `quantityDiscountTiers` below exist in the schema
- * for the Marketplace resale module, not for what a collector pays a
- * household/organization at pickup.
+ * Base ₹/kg rates match backend/models/ScrapRate.js's DEFAULT_RATES — the
+ * numbers already agreed as EcoSetu's canonical pricing model. The original
+ * 7 track typical unorganized-sector kabadiwala rates across Indian metros
+ * (plastic/PET and metal command the highest ₹/kg; glass the lowest); the 6
+ * added for the 13-category expansion (wooden/decorations/furniture/books/
+ * stationery/home-decor) are conservative placeholders, same as their
+ * backend counterparts — see that file's own comment. Pickups pay the BASE
+ * rate only — `marketMultiplier` and `quantityDiscountTiers` below exist in
+ * the schema for the Marketplace resale module, not for what a collector
+ * pays a household/organization at pickup.
  */
 
-/** ₹ per kg a collector pays for verified material at pickup. */
+/** ₹ per kg a collector pays for verified material at pickup — mirrors backend/constants/categories.js's 13 official categories exactly. */
 export const SCRAP_RATES = {
   plastic: { displayName: "Plastic", unit: "kg", pricePerKg: 18 },
   metal: { displayName: "Metal", unit: "kg", pricePerKg: 35 },
@@ -32,7 +34,13 @@ export const SCRAP_RATES = {
   cardboard: { displayName: "Cardboard", unit: "kg", pricePerKg: 10 },
   glass: { displayName: "Glass", unit: "kg", pricePerKg: 4 },
   "e-waste": { displayName: "E-Waste", unit: "kg", pricePerKg: 25 },
-  mixed: { displayName: "Mixed Waste", unit: "kg", pricePerKg: 5 },
+  wooden: { displayName: "Wooden Scraps", unit: "kg", pricePerKg: 8 },
+  decorations: { displayName: "Decorations", unit: "kg", pricePerKg: 6 },
+  furniture: { displayName: "Furniture", unit: "kg", pricePerKg: 15 },
+  books: { displayName: "Books", unit: "kg", pricePerKg: 10 },
+  stationery: { displayName: "Stationery", unit: "kg", pricePerKg: 8 },
+  "home-decor": { displayName: "Home Decor", unit: "kg", pricePerKg: 10 },
+  others: { displayName: "Others", unit: "kg", pricePerKg: 5 },
 };
 
 /** Categories a collector can record during on-site verification. */
@@ -48,4 +56,4 @@ export const VERIFIABLE_CATEGORIES = Object.keys(SCRAP_RATES);
  */
 export const INSTANT_PICKUP_FEE = 30;
 
-export const getScrapRate = (category) => SCRAP_RATES[category]?.pricePerKg ?? SCRAP_RATES.mixed.pricePerKg;
+export const getScrapRate = (category) => SCRAP_RATES[category]?.pricePerKg ?? SCRAP_RATES.others.pricePerKg;

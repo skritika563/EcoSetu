@@ -205,13 +205,11 @@ const UserDropdown = ({ user, role, logout }) => {
               Sustainability dashboard
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            id="nav-profile"
-            onSelect={() => notifyComingSoon("Profile")}
-            className="flex items-center gap-2"
-          >
-            <User className="h-4 w-4" />
-            Profile settings
+          <DropdownMenuItem id="nav-profile" asChild className="flex items-center gap-2">
+            <Link to="/profile">
+              <User className="h-4 w-4" />
+              Profile settings
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

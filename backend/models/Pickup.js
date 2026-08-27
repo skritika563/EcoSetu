@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { normalizeCity, isValidCityName } = require("../utils/textNormalize");
+const { SCRAP_CATEGORIES } = require("../constants/categories");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -24,7 +25,11 @@ const { normalizeCity, isValidCityName } = require("../utils/textNormalize");
  *     predates the frontend implementation.
  */
 
-const CATEGORIES = ["plastic", "metal", "paper", "cardboard", "glass", "e-waste", "mixed"];
+// The one official EcoSetu scrap/material vocabulary — see
+// constants/categories.js. Re-exported as `Pickup.CATEGORIES` (below) so
+// existing callers that already read it off the model keep working
+// unchanged.
+const CATEGORIES = SCRAP_CATEGORIES;
 const STATUSES = ["pending", "collector_assigned", "on_the_way", "in_progress", "completed", "cancelled"];
 
 const addressSubSchema = new mongoose.Schema(

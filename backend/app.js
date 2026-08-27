@@ -60,7 +60,7 @@ const userRoutes = require("./routes/userRoutes");
 // const requestRoutes = require("./routes/requestRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 // const reviewRoutes = require("./routes/reviewRoutes");
-// const adminRoutes = require("./routes/adminRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/pickups", pickupRoutes);
@@ -77,7 +77,7 @@ app.use("/api/users", userRoutes);
 // app.use("/api/requests", requestRoutes);
 app.use("/api/ai", aiRoutes);
 // app.use("/api/reviews", reviewRoutes);
-// app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {

@@ -27,13 +27,18 @@ const VALID_CATEGORIES = Product.CATEGORIES;
 const VALID_CONDITIONS = Product.CONDITIONS;
 
 /**
- * Pickup material categories (Pickup.CATEGORIES) and marketplace listing
- * categories (Product.CATEGORIES) are DIFFERENT vocabularies — a pickup
- * deals in raw scrap materials, a listing can also be "Furniture" or
- * "Books". Where they genuinely overlap, this maps one onto the other so a
- * listing created from a real completed pickup can be pre-filled honestly.
- * `cardboard` maps to `paper` (closest real material) and `mixed` maps to
- * `others` — every other key is identical in both vocabularies.
+ * Pickup material categories (constants/categories.js's SCRAP_CATEGORIES)
+ * and marketplace listing categories (Product.CATEGORIES) are DIFFERENT
+ * vocabularies — a pickup deals in raw scrap materials (plus, since the
+ * 13-category expansion, some reusable-goods categories too), a listing has
+ * its own broader taxonomy (includes "diy"/"upcycled"/"electronics", which
+ * have no pickup equivalent). Where they genuinely overlap, this maps one
+ * onto the other so a listing created from a real completed pickup can be
+ * pre-filled honestly. Most of the 13 pickup categories are identical keys
+ * in both vocabularies; `cardboard` maps to `paper` (closest real material),
+ * `wooden` to `diy` (raw wood is classic DIY/upcycling material — there's no
+ * dedicated "wood" listing category), `decorations` to `home-decor`
+ * (closest real match), and `others` to `others`.
  */
 const PICKUP_TO_PRODUCT_CATEGORY = {
   plastic: "plastic",
@@ -42,7 +47,13 @@ const PICKUP_TO_PRODUCT_CATEGORY = {
   cardboard: "paper",
   glass: "glass",
   "e-waste": "e-waste",
-  mixed: "others",
+  wooden: "diy",
+  decorations: "home-decor",
+  furniture: "furniture",
+  books: "books",
+  stationery: "stationery",
+  "home-decor": "home-decor",
+  others: "others",
 };
 
 /**

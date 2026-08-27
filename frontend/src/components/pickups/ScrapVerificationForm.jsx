@@ -27,7 +27,7 @@ import { Camera, Loader2, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { VERIFIABLE_CATEGORIES } from "@/data/pricingData";
 import { calculatePickupTotal } from "@/services/pricingService";
-import { classifyScrapImages } from "@/lib/scrapClassification";
+import { classifyImage } from "@/services/aiService";
 import { uploadPickupImages } from "@/services/pickupService";
 import { getCategory } from "@/config/domain";
 import { formatWeight } from "@/lib/format";
@@ -109,13 +109,45 @@ const ScrapVerificationForm = ({
   const updateWeight = (key, weight) => setRows((prev) => prev.map((r) => (r.key === key ? { ...r, weight } : r)));
   const removeRow = (key) => setRows((prev) => prev.filter((r) => r.key !== key));
 
+  /**
+   * Real Gemini classification (POST /api/ai/classify) against ALL
+   * uploaded verification photos, sent together in one call so Gemini
+   * reasons across every angle/pile rather than just the most recent shot.
+   * Unlike the booking flow, these photos are already real Cloudinary URLs
+   * by the time this runs (uploaded immediately on selection — see this
+   * file's header comment), so each is re-fetched as a blob and re-sent as
+   * a file, rather than the raw File object (which no longer exists
+   * client-side once uploaded). Capped to the classify endpoint's own
+   * per-request limit (MAX_IMAGES_PER_REQUEST, currently 4) — a pickup can
+   * collect up to 8 verification photos total, more than one classify call
+   * accepts, so only the most recent ones are sent.
+   */
   const runAiAssist = async () => {
+    if (verificationImages.length === 0) {
+      toast.error("Add a verification photo first — AI needs something to look at.");
+      return;
+    }
     setClassifying(true);
     try {
-      const result = await classifyScrapImages({ imageCount: 1 });
-      const additions = result
-        .filter((r) => !usedCategories.includes(r.category))
-        .map((r) => newRow(r.category, ""));
+      const MAX_CLASSIFY_IMAGES = 4;
+      const recentPhotos = verificationImages.slice(-MAX_CLASSIFY_IMAGES);
+      const files = await Promise.all(
+        recentPhotos.map(async (photo, i) => {
+          const imageRes = await fetch(photo.url);
+          const blob = await imageRes.blob();
+          return new File([blob], `verification-photo-${i}.jpg`, { type: blob.type || "image/jpeg" });
+        })
+      );
+
+      const result = await classifyImage(files);
+      if (!result.classification_possible || result.categories.length === 0) {
+        toast.info(result.summary || "AI couldn't confidently identify a category from this photo.");
+        return;
+      }
+
+      const additions = result.categories
+        .filter((c) => !usedCategories.includes(c.category))
+        .map((c) => newRow(c.category, ""));
 
       if (additions.length === 0) {
         toast.info("AI didn't find any new categories to suggest.");
@@ -123,6 +155,8 @@ const ScrapVerificationForm = ({
       }
       setRows((prev) => [...prev, ...additions]);
       toast.info("AI suggested categories added — enter the actual weight for each.");
+    } catch (err) {
+      toast.error(err.message || "AI classification failed. Please add categories manually.");
     } finally {
       setClassifying(false);
     }

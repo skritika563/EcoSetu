@@ -10,6 +10,7 @@ const { uploadImageBuffer, deleteImage } = require("../services/imageUploadServi
 const { MAX_IMAGES_PER_PICKUP } = require("../middleware/uploadMiddleware");
 const { INSTANT_FEE_RUPEES, verifyPaymentSignature } = require("../services/razorpayService");
 const { isValidCityName } = require("../utils/textNormalize");
+const { isValidScrapCategory } = require("../constants/categories");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -29,7 +30,6 @@ const { isValidCityName } = require("../utils/textNormalize");
 const populate = (query) =>
   query.populate("userId", POPULATE_FIELDS.user).populate("collectorId", POPULATE_FIELDS.collector);
 
-const VALID_CATEGORIES = Pickup.CATEGORIES;
 const isOwner = (pickup, userId) => pickup.userId?._id?.toString() === userId.toString() || pickup.userId?.toString() === userId.toString();
 const isAssignedCollector = (pickup, userId) =>
   pickup.collectorId && (pickup.collectorId._id?.toString() === userId.toString() || pickup.collectorId.toString() === userId.toString());
@@ -113,7 +113,7 @@ const createPickup = async (req, res) => {
         });
       }
     }
-    const invalidCategories = (estimatedCategories || []).filter((c) => !VALID_CATEGORIES.includes(c));
+    const invalidCategories = (estimatedCategories || []).filter((c) => !isValidScrapCategory(c));
     if (invalidCategories.length > 0) {
       return res.status(400).json({
         success: false,
@@ -633,6 +633,18 @@ const verifyPickup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Record at least one category with a weight greater than zero.",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+    // Explicit, up-front rejection of any unofficial category — the same
+    // check createPickup already runs on the household's estimate, applied
+    // here too so a bad category is a clear 400 rather than only surfacing
+    // indirectly as "no active rate found" from calculatePickupTotal below.
+    const invalidVerifiedCategories = verifiedCategories.filter((c) => !isValidScrapCategory(c.category));
+    if (invalidVerifiedCategories.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Unknown categories: ${invalidVerifiedCategories.map((c) => c.category).join(", ")}`,
         error: { code: "VALIDATION_ERROR" },
       });
     }

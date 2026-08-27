@@ -18,6 +18,10 @@ import {
   TreePine,
   Sparkles,
   Trash2,
+  Armchair,
+  BookOpen,
+  PenTool,
+  Home,
 } from "lucide-react";
 
 /* ─── Waste categories ───────────────────────────────────────────────────────
@@ -25,6 +29,14 @@ import {
  * in the same brand green made breakdowns unreadable — each category now owns
  * one hue, used consistently wherever that category appears. Held at 70%
  * opacity so a stack of bars reads as a muted set rather than a colour clash.
+ *
+ * These 13 keys are EcoSetu's one official scrap/material vocabulary —
+ * mirrors backend/constants/categories.js exactly (SCRAP_CATEGORIES) so the
+ * frontend never invents a category the backend doesn't recognize. Expanded
+ * from the original 7 (which stop after "e-waste" below) to also cover
+ * reusable-goods categories a household pickup can genuinely contain;
+ * "mixed" is retired in favour of "others" as the catch-all — `getCategory`'s
+ * fallback below reflects that.
  */
 export const WASTE_CATEGORIES = {
   plastic: { label: "Plastic", icon: Package, tint: "text-sky-600 dark:text-sky-400 bg-sky-500/10", bar: "bg-sky-500/70" },
@@ -35,10 +47,14 @@ export const WASTE_CATEGORIES = {
   "e-waste": { label: "E-Waste", icon: Cpu, tint: "text-violet-600 dark:text-violet-400 bg-violet-500/10", bar: "bg-violet-500/70" },
   wooden: { label: "Wooden Scraps", icon: TreePine, tint: "text-emerald-700 dark:text-emerald-400 bg-emerald-600/10", bar: "bg-emerald-600/70" },
   decorations: { label: "Decorations", icon: Sparkles, tint: "text-pink-600 dark:text-pink-400 bg-pink-500/10", bar: "bg-pink-400/70" },
-  mixed: { label: "Mixed Waste", icon: Trash2, tint: "text-muted-foreground bg-muted", bar: "bg-muted-foreground/50" },
+  furniture: { label: "Furniture", icon: Armchair, tint: "text-rose-600 dark:text-rose-400 bg-rose-500/10", bar: "bg-rose-500/70" },
+  books: { label: "Books", icon: BookOpen, tint: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10", bar: "bg-indigo-500/70" },
+  stationery: { label: "Stationery", icon: PenTool, tint: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10", bar: "bg-cyan-500/70" },
+  "home-decor": { label: "Home Decor", icon: Home, tint: "text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-500/10", bar: "bg-fuchsia-500/70" },
+  others: { label: "Others", icon: Trash2, tint: "text-muted-foreground bg-muted", bar: "bg-muted-foreground/50" },
 };
 
-export const getCategory = (key) => WASTE_CATEGORIES[key] ?? WASTE_CATEGORIES.mixed;
+export const getCategory = (key) => WASTE_CATEGORIES[key] ?? WASTE_CATEGORIES.others;
 
 /* ─── Status tones ───────────────────────────────────────────────────────── */
 const TONES = {

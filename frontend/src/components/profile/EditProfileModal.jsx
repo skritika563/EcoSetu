@@ -23,6 +23,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const fileInputRef = useRef(null);
+  // Tracks the currently-live blob URL (if any) so it can be revoked the
+  // moment it's replaced or no longer needed — URL.createObjectURL() leaks
+  // memory until explicitly revoked; nothing else does this automatically.
+  const objectUrlRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -38,9 +42,19 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
   const [previewUrl, setPreviewUrl] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const revokeTrackedObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  };
+
   // Populate form when modal opens or initialProfile changes
   useEffect(() => {
     if (open) {
+      // A previous open may have left a picked-but-unsaved blob preview
+      // around — drop it before loading the real source image.
+      revokeTrackedObjectUrl();
       const source = initialProfile || user || {};
       setFormData({
         name: source.name || "",
@@ -54,6 +68,9 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
       setPreviewUrl(source.profileImage || null);
       setSelectedFile(null);
     }
+    // Revoke on unmount too, in case the component goes away with a
+    // picked-but-unsaved file still selected.
+    return revokeTrackedObjectUrl;
   }, [open, initialProfile, user]);
 
   const handleFileChange = (e) => {
@@ -70,8 +87,14 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
       return;
     }
 
+    // Replacing a previous local pick — revoke its blob URL before creating
+    // the next one so repeated selections don't leak.
+    revokeTrackedObjectUrl();
+    const objectUrl = URL.createObjectURL(file);
+    objectUrlRef.current = objectUrl;
+
     setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrl(objectUrl);
   };
 
   const handleChange = (field, value) => {
@@ -100,10 +123,26 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
     let uploadedImageUrl = null;
 
     try {
-      // 1. Upload avatar image if a new file was chosen
+      // 1. Upload avatar image if a new file was chosen. This is its own
+      // request against its own endpoint (POST /users/upload-avatar) — once
+      // it succeeds, the new avatar is already persisted server-side,
+      // independent of whether step 2 below goes on to succeed or fail.
       if (selectedFile) {
         const uploadRes = await uploadProfileImage(selectedFile);
         uploadedImageUrl = uploadRes.profileImage;
+        // Reflect it immediately: if the text-field update below fails, the
+        // avatar change must not be lost from view or silently misreported
+        // as "nothing happened" — it really did happen.
+        if (updateUser) updateUser({ profileImage: uploadedImageUrl });
+        // The real (Cloudinary) URL is now available — swap the preview
+        // over to it and release the local blob immediately rather than
+        // leaving it dangling (un-revoked) until this modal next opens.
+        revokeTrackedObjectUrl();
+        setPreviewUrl(uploadedImageUrl);
+        // It's already saved server-side — clear the pending local file so
+        // a retry (after a text-field-only failure below) doesn't upload
+        // the same image a second time.
+        setSelectedFile(null);
       }
 
       // 2. Update text fields
@@ -122,7 +161,7 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
       const profileRes = await updateProfile(payload);
       const updatedUser = profileRes.user;
 
-      // 3. Sync AuthContext state
+      // 3. Sync AuthContext state with the rest of the saved fields.
       if (updateUser) {
         updateUser({
           ...updatedUser,
@@ -135,7 +174,14 @@ const EditProfileModal = ({ open, onOpenChange, initialProfile, onSuccess }) => 
       onOpenChange(false);
     } catch (err) {
       console.error("Profile update error:", err);
-      toast.error(err.message || "Failed to update profile. Please try again.");
+      // The avatar (if one was picked) may have already saved successfully
+      // above even though this catch fired for the text-field update — say
+      // so explicitly rather than implying the whole save failed.
+      toast.error(
+        uploadedImageUrl
+          ? "Your new photo was saved, but the rest of your profile couldn't be updated. Please try again."
+          : err.message || "Failed to update profile. Please try again."
+      );
     } finally {
       setSaving(false);
     }

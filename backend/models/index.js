@@ -15,6 +15,7 @@
  * - CampaignParticipant.js → Join record for both participants and volunteers
  *                            (participationType discriminates the two)
  * - Certificate.js       → Issued campaign-participation certificates
+ * - AdminAuditLog.js     → Append-only admin action audit trail
  *
  * Not yet built (deferred modules):
  * - Organization.js  → Registered organization profiles
@@ -37,6 +38,7 @@ const MarketplaceOrder = require("./MarketplaceOrder");
 const Campaign = require("./Campaign");
 const CampaignParticipant = require("./CampaignParticipant");
 const Certificate = require("./Certificate");
+const AdminAuditLog = require("./AdminAuditLog");
 
 module.exports = {
   User,
@@ -49,4 +51,6 @@ module.exports = {
   Campaign,
   CampaignParticipant,
   Certificate,
+  AdminAuditLog,
 };
+

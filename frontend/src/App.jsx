@@ -78,22 +78,20 @@ const MyCampaignsPage = lazy(() => import("@/pages/campaigns/MyCampaignsPage"));
 const CampaignFormPage = lazy(() => import("@/pages/campaigns/CampaignFormPage"));
 const CampaignManagePage = lazy(() => import("@/pages/campaigns/CampaignManagePage"));
 
-/* ─── Admin placeholder — replaced by the Admin module ───────────────────── */
-function AdminPlaceholder() {
-  const { user } = useAuth();
-
-  return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-        <span className="text-xl">🌿</span>
-      </div>
-      <h1 className="font-heading text-xl font-semibold text-foreground">Admin Dashboard</h1>
-      <p className="max-w-xs text-center text-sm text-muted-foreground">
-        Welcome, {user?.name}. The admin console is built in a later module.
-      </p>
-    </div>
-  );
-}
+// Admin module — dedicated platform administration console.
+const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const AdminUserDetails = lazy(() => import("@/pages/admin/AdminUserDetails"));
+const AdminPickups = lazy(() => import("@/pages/admin/AdminPickups"));
+const AdminPickupDetails = lazy(() => import("@/pages/admin/AdminPickupDetails"));
+const AdminMarketplace = lazy(() => import("@/pages/admin/AdminMarketplace"));
+const AdminCampaigns = lazy(() => import("@/pages/admin/AdminCampaigns"));
+const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
+const AdminScrapRates = lazy(() => import("@/pages/admin/AdminScrapRates"));
+const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
+const AdminAuditLog = lazy(() => import("@/pages/admin/AdminAuditLog"));
+const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 
 /**
  * Home dashboard for a role.
@@ -102,9 +100,10 @@ function AdminPlaceholder() {
  */
 function RoleHome({ role }) {
   if (role === "collector") return <CollectorHome />;
-  if (role === "admin") return <AdminPlaceholder />;
+  if (role === "admin") return <Navigate to="/admin" replace />;
   return <GeneralUserHome />;
 }
+
 
 /* ─── Smart root ─────────────────────────────────────────────────────────── */
 function AuthHome() {
@@ -154,6 +153,11 @@ function App() {
           {/* Sustainability dashboard — impact detail for any signed-in user */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<SustainabilityDashboard />} />
+            {/* "Profile settings" from the Navbar's user dropdown — same
+                UserProfilePage as the marketplace/campaigns routes below,
+                just with no :sellerId/:userId param, so it falls back to
+                the signed-in user's own id and shows the Edit button. */}
+            <Route path="/profile" element={<UserProfilePage />} />
           </Route>
 
           {/* Pickups — household/organization booking + tracking.
@@ -234,11 +238,37 @@ function App() {
 
           {/* Role-scoped dashboards — derived from ROLE_META so routes and role
               metadata can never drift apart. */}
-          {Object.entries(ROLE_META).map(([role, meta]) => (
-            <Route key={role} element={<ProtectedRoute allowedRoles={[role]} />}>
-              <Route path={`${meta.home}/*`} element={<RoleHome role={role} />} />
-            </Route>
-          ))}
+          {Object.entries(ROLE_META)
+            .filter(([role]) => role !== "admin")
+            .map(([role, meta]) => (
+              <Route key={role} element={<ProtectedRoute allowedRoles={[role]} />}>
+                <Route path={`${meta.home}/*`} element={<RoleHome role={role} />} />
+              </Route>
+            ))}
+        </Route>
+
+        {/* Admin Console — Dedicated Layout (AdminLayout), protected by admin role guard */}
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <AdminLayout />
+              </Suspense>
+            }
+          >
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/users/:id" element={<AdminUserDetails />} />
+            <Route path="/admin/pickups" element={<AdminPickups />} />
+            <Route path="/admin/pickups/:id" element={<AdminPickupDetails />} />
+            <Route path="/admin/marketplace" element={<AdminMarketplace />} />
+            <Route path="/admin/campaigns" element={<AdminCampaigns />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+            <Route path="/admin/scrap-rates" element={<AdminScrapRates />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+          </Route>
         </Route>
 
         {/* Catch-all */}
@@ -249,3 +279,4 @@ function App() {
 }
 
 export default App;
+

@@ -22,10 +22,11 @@
 
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import { Camera, Loader2, Sparkles, X } from "lucide-react";
 
 import { VERIFIABLE_CATEGORIES } from "@/data/pricingData";
-import { classifyScrapImages } from "@/lib/scrapClassification";
+import { classifyImage } from "@/services/aiService";
 import { getCategory } from "@/config/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,14 +35,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 4;
-
-/**
- * Display-only label override for this step: "mixed" reads better as
- * "Others" when it's sitting alongside concrete material chips. Every other
- * screen (breakdown charts, receipts, sustainability) keeps the shared
- * "Mixed Waste" label from config/domain.js — this override is local.
- */
-const stepLabel = (key) => (key === "mixed" ? "Others" : getCategory(key).label);
 
 const ScrapInfoStep = ({ value, onChange }) => {
   const { images, categories, aiPrediction, itemCount, estimatedWeightKg, notes } = value;
@@ -77,15 +70,39 @@ const ScrapInfoStep = ({ value, onChange }) => {
     patch({ categories: next, classificationSource: "manual", aiPrediction: null });
   };
 
+  /**
+   * Real Gemini classification (POST /api/ai/classify) against EVERY
+   * uploaded photo's raw File, sent together in one call so Gemini reasons
+   * across all of them (see backend/services/geminiService.js) — not just
+   * the first. Not yet uploaded to Cloudinary at this point in the booking
+   * flow (see this file's header comment), so the original File objects are
+   * what get sent, not URLs.
+   */
   const runAiClassification = async () => {
+    if (images.length === 0) {
+      toast.error("Add a photo first — AI needs something to look at.");
+      return;
+    }
     setClassifying(true);
     try {
-      const result = await classifyScrapImages({ imageCount: images.length });
+      const result = await classifyImage(images.map((img) => img.file));
+      if (!result.classification_possible || result.categories.length === 0) {
+        toast.info(result.summary || "AI couldn't confidently identify a category from this photo. Try a clearer photo, or select categories manually.");
+        return;
+      }
+      // Contract confidence is 0–1 (see backend/services/geminiService.js);
+      // this screen's confidence badges are written as whole percentages.
+      const aiPrediction = result.categories.map((c) => ({
+        category: c.category,
+        confidence: Math.round(c.confidence * 100),
+      }));
       patch({
-        aiPrediction: result,
-        categories: result.map((r) => r.category),
+        aiPrediction,
+        categories: aiPrediction.map((p) => p.category),
         classificationSource: "ai",
       });
+    } catch (err) {
+      toast.error(err.message || "AI classification failed. Please select categories manually.");
     } finally {
       setClassifying(false);
     }
@@ -201,7 +218,7 @@ const ScrapInfoStep = ({ value, onChange }) => {
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
-                {stepLabel(key)}
+                {category.label}
                 {confidence != null && (
                   <span
                     className={cn(

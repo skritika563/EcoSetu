@@ -59,7 +59,7 @@ export const calculatePickupTotal = (verifiedCategories = []) => {
 export const estimatePickupValue = (categories = [], estimatedWeightKg) => {
   if (!estimatedWeightKg || estimatedWeightKg <= 0) return null;
 
-  const activeCategories = categories.length > 0 ? categories : ["mixed"];
+  const activeCategories = categories.length > 0 ? categories : ["others"];
   const rates = activeCategories.map(getScrapRate);
   const lowRate = Math.min(...rates);
   const highRate = Math.max(...rates);
