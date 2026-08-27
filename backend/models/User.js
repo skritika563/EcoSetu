@@ -113,6 +113,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null, // Cloudinary URL
     },
+    bio: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [300, "Bio cannot exceed 300 characters"],
+    },
 
     // ── Role ──────────────────────────────────────────────────────────────
     role: {

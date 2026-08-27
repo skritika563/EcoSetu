@@ -15,8 +15,8 @@ const app = require("./app");
 const connectDB = require("./config/db");
 const { initializeFirebase } = require("./config/firebase");
 const { initializeCloudinary } = require("./config/cloudinary");
-const { initializeGemini } = require("./config/gemini");
 const { initializeRazorpay } = require("./config/razorpay");
+
 const seedScrapRates = require("./scripts/seedScrapRates");
 const seedMarketplace = require("./scripts/seedMarketplace");
 const seedCampaigns = require("./scripts/seedCampaigns");
@@ -30,16 +30,13 @@ const startServer = async () => {
     // 1. Connect to MongoDB Atlas
     await connectDB();
 
-    // 1b. Seed default scrap rates if the collection is empty (idempotent)
+    // 1b. Seed default scrap rates if the collection is empty
     await seedScrapRates();
 
-    // 1c. Seed starter marketplace listings if none exist (idempotent).
-    // Attributed to real users, so a fresh database still has something to
-    // browse — see scripts/seedMarketplace.js.
+    // 1c. Seed starter marketplace listings if none exist
     await seedMarketplace();
 
-    // 1d. Seed starter campaigns if none exist (idempotent). Attributed to
-    // real organization accounts — see scripts/seedCampaigns.js.
+    // 1d. Seed starter campaigns if none exist
     await seedCampaigns();
 
     // 2. Initialize Firebase Admin SDK
@@ -48,19 +45,23 @@ const startServer = async () => {
     // 3. Initialize Cloudinary SDK
     initializeCloudinary();
 
-    // 4. Initialize Google Gemini AI
-    initializeGemini();
-
-    // 4b. Initialize Razorpay (instant-pickup fee payments)
+    // 4. Initialize Razorpay
     initializeRazorpay();
 
     // 5. Start HTTP Server
     app.listen(PORT, () => {
       console.log("──────────────────────────────────────────────");
-      console.log(`🌿 Eco Setu API Server`);
-      console.log(`   Environment : ${process.env.NODE_ENV || "development"}`);
+      console.log("🌿 Eco Setu API Server");
+      console.log(
+        `   Environment : ${process.env.NODE_ENV || "development"}`
+      );
       console.log(`   Port        : ${PORT}`);
-      console.log(`   Health      : http://localhost:${PORT}/api/health`);
+      console.log(
+        `   Health      : http://localhost:${PORT}/api/health`
+      );
+      console.log(
+        `   AI          : http://localhost:${PORT}/api/ai/classify`
+      );
       console.log("──────────────────────────────────────────────");
     });
   } catch (error) {
@@ -70,6 +71,7 @@ const startServer = async () => {
 };
 
 // ─── Handle Unhandled Rejections & Exceptions ───────────────────────────────
+
 process.on("unhandledRejection", (reason) => {
   console.error("❌ Unhandled Rejection:", reason);
   process.exit(1);

@@ -64,10 +64,27 @@ const uploadImages = (fieldName = "images") => (req, res, next) => {
   });
 };
 
+const uploadSingleImage = (fieldName = "file") => (req, res, next) => {
+  upload.single(fieldName)(req, res, (err) => {
+    if (!err) return next();
+
+    let message = "Invalid image upload.";
+    if (err.code === "LIMIT_FILE_SIZE") {
+      message = `Image must be ${MAX_FILE_SIZE_MB}MB or smaller.`;
+    } else if (err.message) {
+      message = err.message;
+    }
+
+    return res.status(400).json({ success: false, message, error: { code: "VALIDATION_ERROR" } });
+  });
+};
+
 module.exports = {
   uploadImages,
+  uploadSingleImage,
   MAX_IMAGES_PER_REQUEST,
   MAX_IMAGES_PER_PICKUP,
   MAX_FILE_SIZE_MB,
   ALLOWED_MIME_TYPES,
 };
+

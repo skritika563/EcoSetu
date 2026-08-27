@@ -58,7 +58,7 @@ const userRoutes = require("./routes/userRoutes");
 // const organizationRoutes = require("./routes/organizationRoutes");
 // const materialRoutes = require("./routes/materialRoutes");
 // const requestRoutes = require("./routes/requestRoutes");
-// const aiRoutes = require("./routes/aiRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 // const reviewRoutes = require("./routes/reviewRoutes");
 // const adminRoutes = require("./routes/adminRoutes");
 
@@ -75,7 +75,7 @@ app.use("/api/users", userRoutes);
 // app.use("/api/organizations", organizationRoutes);
 // app.use("/api/materials", materialRoutes);
 // app.use("/api/requests", requestRoutes);
-// app.use("/api/ai", aiRoutes);
+app.use("/api/ai", aiRoutes);
 // app.use("/api/reviews", reviewRoutes);
 // app.use("/api/admin", adminRoutes);
 

@@ -19,8 +19,9 @@
 
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Award, BadgeCheck, HandHeart, MapPin, MessageCircle, Star, UserCheck } from "lucide-react";
+import { ArrowLeft, Award, BadgeCheck, HandHeart, MapPin, MessageCircle, Pencil, Star, UserCheck } from "lucide-react";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUsers";
 import { getCampaignTypeLabel, getParticipationStatusMeta } from "@/config/campaigns";
 import { formatFriendlyDate, formatNumber, getInitials } from "@/lib/format";
@@ -34,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StatusBadge from "@/components/common/StatusBadge";
+import EditProfileModal from "@/components/profile/EditProfileModal";
 import { cn } from "@/lib/utils";
 
 const ROLE_LABELS = {
@@ -86,15 +88,19 @@ const CampaignHistoryRow = ({ entry }) => {
 
 const UserProfilePage = () => {
   const { sellerId, userId } = useParams();
-  const id = userId ?? sellerId;
+  const { user: currentUser } = useAuth();
+
+  const id = userId ?? sellerId ?? currentUser?.id ?? currentUser?._id;
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const { profile, bio, campaignHistory, loading, error, refetch } = useUserProfile(id);
 
+  const isOwnProfile = Boolean(
+    currentUser && profile && (currentUser.id === profile.id || currentUser._id === profile.id)
+  );
+
   const participantEntries = useMemo(() => campaignHistory.filter((e) => e.participationType === "participant"), [campaignHistory]);
   const volunteerEntries = useMemo(() => campaignHistory.filter((e) => e.participationType === "volunteer"), [campaignHistory]);
-  // Only worth splitting into tabs when this person has done both kinds —
-  // one lone tab would just relabel the same list. Default to whichever
-  // kind actually has entries.
   const hasBothKinds = participantEntries.length > 0 && volunteerEntries.length > 0;
   const [historyTab, setHistoryTab] = useState(participantEntries.length > 0 ? "participant" : "volunteer");
   const visibleEntries = hasBothKinds ? (historyTab === "participant" ? participantEntries : volunteerEntries) : campaignHistory;
@@ -130,53 +136,65 @@ const UserProfilePage = () => {
     <PageContainer className="space-y-6 py-6 sm:py-8">
       <BackLink />
 
-      <header className="flex flex-wrap items-center gap-4">
-        <Avatar className="h-16 w-16">
-          {profile.profileImage && <AvatarImage src={profile.profileImage} alt="" />}
-          <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{getInitials(profile.name)}</AvatarFallback>
-        </Avatar>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <Avatar className="h-16 w-16">
+            {profile.profileImage && <AvatarImage src={profile.profileImage} alt="" />}
+            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{getInitials(profile.name)}</AvatarFallback>
+          </Avatar>
 
-        <div className="min-w-0 flex-1">
-          <h1 className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight text-foreground">
-            <span className="truncate">{profile.name}</span>
-            {profile.verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified by EcoSetu" />}
-            {/* Chat isn't built yet (no Conversation/Message model — see
-                MarketplaceMessages.jsx's header comment for the honest
-                "not built" boundary this shares); an honest coming-soon
-                toast beats a dead-looking link. */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary"
-              onClick={() => notifyComingSoon("Chat")}
-              aria-label={`Chat with ${profile.name}`}
-            >
-              <MessageCircle className="h-4 w-4" />
-            </Button>
-          </h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight text-foreground">
+              <span className="truncate">{profile.name}</span>
+              {profile.verified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary" aria-label="Verified by EcoSetu" />}
+              {!isOwnProfile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={() => notifyComingSoon("Chat")}
+                  aria-label={`Chat with ${profile.name}`}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+              )}
+            </h1>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>{profile.role === "organization" && profile.organizationType ? profile.organizationType : (ROLE_LABELS[profile.role] ?? profile.role)}</span>
-            {profile.rating != null && (
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span>{profile.role === "organization" && profile.organizationType ? profile.organizationType : (ROLE_LABELS[profile.role] ?? profile.role)}</span>
+              {profile.rating != null && (
+                <span className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
+                  {profile.rating.toFixed(1)}
+                </span>
+              )}
+              {profile.city && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {profile.city}
+                </span>
+              )}
               <span className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 fill-current text-amber-500" />
-                {profile.rating.toFixed(1)}
+                <Award className="h-3.5 w-3.5 text-primary" />
+                {formatNumber(profile.ecoPoints)} Eco Points
               </span>
-            )}
-            {profile.city && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {profile.city}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-primary" />
-              {formatNumber(profile.ecoPoints)} Eco Points
-            </span>
+            </div>
+
+            {profile.memberSince && <p className="mt-0.5 text-xs text-muted-foreground">On EcoSetu since {formatFriendlyDate(profile.memberSince)}</p>}
           </div>
-
-          {profile.memberSince && <p className="mt-0.5 text-xs text-muted-foreground">On EcoSetu since {formatFriendlyDate(profile.memberSince)}</p>}
         </div>
+
+        {isOwnProfile && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditOpen(true)}
+            className="shrink-0 gap-1.5"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit Profile
+          </Button>
+        )}
       </header>
 
       <div className="rounded-xl border border-border bg-card p-4">
@@ -215,8 +233,18 @@ const UserProfilePage = () => {
           </div>
         </div>
       )}
+
+      {isOwnProfile && (
+        <EditProfileModal
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          initialProfile={profile}
+          onSuccess={refetch}
+        />
+      )}
     </PageContainer>
   );
 };
 
 export default UserProfilePage;
+

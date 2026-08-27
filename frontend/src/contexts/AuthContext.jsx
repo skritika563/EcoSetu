@@ -350,6 +350,10 @@ export const AuthProvider = ({ children }) => {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const updateUser = useCallback((updatedFields) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedFields } : null));
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -370,6 +374,7 @@ export const AuthProvider = ({ children }) => {
       retryProfileLoad,
       logout,
       clearError,
+      updateUser,
     }),
     [
       user,
@@ -390,6 +395,7 @@ export const AuthProvider = ({ children }) => {
       retryProfileLoad,
       logout,
       clearError,
+      updateUser,
     ]
   );
 

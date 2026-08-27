@@ -53,6 +53,7 @@ const serializeSeller = (seller, { includePhone = false } = {}) => {
     rating: seller.role === "collector" ? (seller.collectorProfile?.rating ?? null) : null,
     city: toTitleCase(seller.address?.city) ?? null,
     profileImage: seller.profileImage ?? null,
+    bio: seller.bio ?? null,
     memberSince: seller.createdAt ?? null,
     ...(includePhone ? { phone: seller.phone ?? null } : {}),
   };
@@ -170,7 +171,7 @@ const POPULATE_FIELDS = {
   // needs it (includePhone: true on the dedicated seller-profile endpoint)
   // — being selected in the query is not the same as being exposed; the
   // serializer is still the only place that decides whether it goes out.
-  seller: "name role isVerified collectorProfile address profileImage createdAt phone",
+  seller: "name role isVerified collectorProfile address profileImage bio createdAt phone",
   buyer: "name role phone",
 };
 

@@ -696,9 +696,7 @@ const getSellerProfile = async (req, res) => {
       message: "Seller profile retrieved",
       data: {
         seller: serializeSeller(seller, { includePhone: true }),
-        // No bio field exists on User yet — omitted rather than invented.
-        // Add it here once the profile module actually captures one.
-        bio: null,
+        bio: seller.bio ?? null,
       },
     });
   } catch (error) {
