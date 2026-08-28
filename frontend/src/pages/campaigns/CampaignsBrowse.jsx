@@ -8,8 +8,8 @@
  */
 
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { MapPin, Search, X } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useCampaigns } from "@/hooks/useCampaigns";
@@ -25,13 +25,30 @@ import CampaignFilters from "@/components/campaigns/CampaignFilters";
 import CampaignGrid from "@/components/campaigns/CampaignGrid";
 
 const CampaignsBrowse = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // "Nearby Campaigns" (Home quick action) links here as `?near=1` — there's
+  // no geolocation/distance backend to sort by, so "near" pragmatically means
+  // "my own city", using the same `city` filter CampaignFilters already has.
+  // Read once from the initial URL/profile rather than in an effect: this is
+  // the campaign list's actual starting filter state, not a value synced
+  // from elsewhere after mount.
+  const nearestCity = searchParams.get("near") ? user?.address?.city : null;
 
   const [tab, setTab] = useState("all");
   const [searchInput, setSearchInput] = useState("");
-  const [filters, setFilters] = useState(EMPTY_CAMPAIGN_FILTERS);
+  const [filters, setFilters] = useState(() =>
+    nearestCity ? { ...EMPTY_CAMPAIGN_FILTERS, city: nearestCity } : EMPTY_CAMPAIGN_FILTERS
+  );
   const search = useDebouncedValue(searchInput, 350);
+
+  const clearNearFilter = () => {
+    setFilters((prev) => ({ ...prev, city: "" }));
+    searchParams.delete("near");
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const queryFilters = useMemo(
     () => ({
@@ -54,6 +71,25 @@ const CampaignsBrowse = () => {
         showCreateAction
         showMineLink
       />
+
+      {searchParams.get("near") && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2 text-sm text-primary">
+          <span className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {filters.city
+              ? `Showing campaigns near ${filters.city}`
+              : "Add your city in Profile to see campaigns near you."}
+          </span>
+          <button
+            type="button"
+            onClick={clearNearFilter}
+            aria-label="Clear nearby filter"
+            className="shrink-0 text-primary/70 hover:text-primary"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -87,8 +87,8 @@ export const getPrimaryNav = (role) => {
 const HOUSEHOLD_ACTIONS = [
   { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true, accent: "purple" },
-  { key: "campaigns", label: "Nearby Campaigns", to: "/campaigns", icon: MapPin, available: true, accent: "orange" },
-  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "teal" },
+  { key: "campaigns", label: "Nearby Campaigns", to: "/campaigns?near=1", icon: MapPin, available: true, accent: "orange" },
+  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: true, accent: "teal" },
 ];
 
 const ORGANIZATION_ACTIONS = [
@@ -100,7 +100,7 @@ const ORGANIZATION_ACTIONS = [
 
 const COLLECTOR_ACTIONS = [
   { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: true, accent: "blue" },
-  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: false, accent: "purple" },
+  { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: true, accent: "purple" },
   { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: true, accent: "orange" },
   { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: false, accent: "teal" },
 ];

@@ -14,7 +14,6 @@ import { motion } from "framer-motion";
 import { CalendarPlus, Clock, MapPin, Recycle, Star, Truck, UserCheck } from "lucide-react";
 
 import { getCategory } from "@/config/domain";
-import { notifyComingSoon } from "@/lib/comingSoon";
 import { formatFriendlyDate, formatWeight } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -54,8 +53,8 @@ const ReadyToRecycle = ({ isOrganization }) => (
             Schedule Pickup
           </Link>
         </Button>
-        <Button variant="outline" onClick={() => notifyComingSoon("Scan Scrap")}>
-          Scan my scrap
+        <Button variant="outline" asChild>
+          <Link to="/scan">Scan my scrap</Link>
         </Button>
       </div>
     </div>

@@ -51,6 +51,7 @@ const BookPickupPage = lazy(() => import("@/pages/pickups/BookPickupPage"));
 const PickupDetailsPage = lazy(() => import("@/pages/pickups/PickupDetailsPage"));
 const CollectorJobsPage = lazy(() => import("@/pages/pickups/CollectorJobsPage"));
 const CollectorJobDetailsPage = lazy(() => import("@/pages/pickups/CollectorJobDetailsPage"));
+const ScanScrapPage = lazy(() => import("@/pages/scan/ScanScrapPage"));
 
 // Marketplace module — every authenticated role browses, buys AND sells here.
 const MarketplaceBrowse = lazy(() => import("@/pages/marketplace/MarketplaceBrowse"));
@@ -174,6 +175,16 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["collector", "admin"]} />}>
             <Route path="/jobs" element={<CollectorJobsPage />} />
             <Route path="/jobs/:jobId" element={<CollectorJobDetailsPage />} />
+          </Route>
+
+          {/* Scan Scrap — standalone AI classification tool. Reachable from the
+              "Scan Scrap" quick action (household/collector Home dashboards,
+              see config/navigation.js's getQuickActions) AND from
+              DashboardHero's "Scan my scrap" button, which household AND
+              organization both see — so organization needs this route too
+              even though it has no dedicated quick-action tile for it. */}
+          <Route element={<ProtectedRoute allowedRoles={["household", "organization", "collector"]} />}>
+            <Route path="/scan" element={<ScanScrapPage />} />
           </Route>
 
           {/* Marketplace — BUYING is open to every signed-in role (household,

@@ -1,5 +1,5 @@
 /**
- * BrandLogo — the EcoSetu wordmark + leaf mark.
+ * BrandLogo — the EcoSetu wordmark + mark.
  *
  * Used by the Navbar, Footer and every auth page so the brand lockup is
  * defined exactly once.
@@ -9,12 +9,11 @@
  */
 
 import { Link } from "react-router-dom";
-import { Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: { box: "h-8 w-8 rounded-lg", icon: "h-4 w-4", text: "text-xl" },
-  md: { box: "h-10 w-10 rounded-xl", icon: "h-5 w-5", text: "text-2xl" },
+  sm: { box: "h-8 w-8 rounded-lg", text: "text-xl" },
+  md: { box: "h-10 w-10 rounded-xl", text: "text-2xl" },
 };
 
 const BrandLogo = ({ size = "sm", to = "/", className }) => {
@@ -22,14 +21,14 @@ const BrandLogo = ({ size = "sm", to = "/", className }) => {
 
   const content = (
     <>
-      <div
+      <img
+        src="/logo.png"
+        alt="EcoSetu"
         className={cn(
-          "flex shrink-0 items-center justify-center bg-primary shadow-sm transition-transform duration-200 group-hover:scale-105",
+          "shrink-0 object-cover shadow-sm transition-transform duration-200 group-hover:scale-105",
           scale.box
         )}
-      >
-        <Leaf className={cn("text-primary-foreground", scale.icon)} strokeWidth={2.2} />
-      </div>
+      />
       <span
         className={cn(
           "font-heading font-bold tracking-tight text-foreground",

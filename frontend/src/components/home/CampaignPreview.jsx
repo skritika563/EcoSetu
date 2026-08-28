@@ -67,7 +67,7 @@ const CampaignPreview = ({ campaigns = [], isOrganization = false, className }) 
       <SectionHeader
         title={isOrganization ? "Your campaigns" : "Campaigns near you"}
         actionLabel="View all"
-        onAction={() => navigate("/campaigns")}
+        onAction={() => navigate(isOrganization ? "/campaigns" : "/campaigns?near=1")}
       />
 
       {campaigns.length === 0 ? (

@@ -19,7 +19,6 @@ import {
   ClipboardList,
   Settings,
   ShieldCheck,
-  Leaf,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -42,9 +41,7 @@ const AdminSidebar = ({ onNavigate }) => {
     <div className="flex h-full flex-col">
       {/* Brand header */}
       <div className="flex items-center gap-3 border-b border-border/60 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-          <Leaf className="h-5 w-5 text-primary" />
-        </div>
+        <img src="/logo.png" alt="EcoSetu" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
         <div>
           <h1 className="font-heading text-base font-bold text-foreground tracking-tight">
             EcoSetu
