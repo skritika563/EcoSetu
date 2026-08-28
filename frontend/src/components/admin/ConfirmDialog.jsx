@@ -25,6 +25,7 @@ const ConfirmDialog = ({
   variant = "destructive",
   loading = false,
   onConfirm,
+  children,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,6 +37,9 @@ const ConfirmDialog = ({
           <DialogTitle className="text-center">{title}</DialogTitle>
           <DialogDescription className="text-center">{description}</DialogDescription>
         </DialogHeader>
+        {/* Optional extra content — e.g. a reason field for a cancellation.
+            Most callers pass nothing, so this renders nothing extra. */}
+        {children && <div className="py-1">{children}</div>}
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelLabel}

@@ -647,7 +647,7 @@ const getUserDetails = async (req, res) => {
     // Role-specific stats
     let roleStats = {};
 
-    if (user.role === "household" || user.role === "organization") {
+    if (user.role === "household") {
       const [pickupCount, pickupAgg, campaignCount] = await Promise.all([
         Pickup.countDocuments({ userId: user._id }),
         Pickup.aggregate([
@@ -678,16 +678,31 @@ const getUserDetails = async (req, res) => {
         rating: user.collectorProfile?.rating ?? 4.5,
       };
     } else if (user.role === "organization") {
-      const [campaignsCreated, campaignAgg] = await Promise.all([
+      // Organizations both run campaigns AND can book their own pickups —
+      // surface both, not just campaign stats (previously this branch was
+      // unreachable entirely since "organization" was caught by the
+      // household condition above and never got campaign stats at all).
+      const [pickupCount, pickupAgg, campaignsCreated, campaignAgg] = await Promise.all([
+        Pickup.countDocuments({ userId: user._id }),
+        Pickup.aggregate([
+          { $match: { userId: user._id, status: "completed", isDonation: false } },
+          { $group: { _id: null, totalAmount: { $sum: "$totalAmount" }, totalWeight: { $sum: { $sum: "$verifiedCategories.weightKg" } } } },
+        ]),
         Campaign.countDocuments({ organizerId: user._id }),
         Campaign.aggregate([
           { $match: { organizerId: user._id } },
           { $group: { _id: null, totalParticipants: { $sum: "$participantCount" }, totalWeight: { $sum: "$collectedWeightKg" } } },
         ]),
       ]);
-      roleStats.campaignsCreated = campaignsCreated;
-      roleStats.totalParticipants = campaignAgg[0]?.totalParticipants ?? 0;
-      roleStats.totalWeightCollectedKg = Math.round((campaignAgg[0]?.totalWeight ?? 0) * 10) / 10;
+      roleStats = {
+        totalPickups: pickupCount,
+        scrapRecycledKg: Math.round((pickupAgg[0]?.totalWeight ?? 0) * 10) / 10,
+        moneyEarned: Math.round((pickupAgg[0]?.totalAmount ?? 0) * 100) / 100,
+        ecoPoints: user.ecoPoints ?? 0,
+        campaignsCreated,
+        totalParticipants: campaignAgg[0]?.totalParticipants ?? 0,
+        totalWeightCollectedKg: Math.round((campaignAgg[0]?.totalWeight ?? 0) * 10) / 10,
+      };
     }
 
     // Recent activity for this user
@@ -898,10 +913,22 @@ const deleteUser = async (req, res) => {
 /** GET /api/admin/pickups?status=&search=&page=&limit= */
 const listAllPickups = async (req, res) => {
   try {
-    const { status, search, page = 1, limit = 20 } = req.query;
+    const { status, search, collectorId, dateFrom, dateTo, page = 1, limit = 20 } = req.query;
 
     const filter = {};
     if (status) filter.status = status;
+    if (collectorId) filter.collectorId = collectorId;
+
+    if (dateFrom || dateTo) {
+      filter.pickupDate = {};
+      if (dateFrom) filter.pickupDate.$gte = new Date(dateFrom);
+      if (dateTo) {
+        // Inclusive of the whole end day.
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        filter.pickupDate.$lte = end;
+      }
+    }
 
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(Math.max(1, parseInt(limit)), 100);

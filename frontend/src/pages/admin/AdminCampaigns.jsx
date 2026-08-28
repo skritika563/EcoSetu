@@ -1,23 +1,18 @@
 /**
  * AdminCampaigns — track, filter, and moderate NGO/School/University collection drives and campaigns.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Search, Filter, Megaphone, Calendar, MapPin, Users, Scale, ChevronLeft, ChevronRight, Ban } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminCampaigns from "@/hooks/useAdminCampaigns";
 import StatusBadge from "@/components/admin/StatusBadge";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const STATUS_TABS = [
@@ -29,16 +24,12 @@ const STATUS_TABS = [
 ];
 
 const AdminCampaigns = () => {
-  const [campaigns, setCampaigns] = useState([]);
-  const [statusCounts, setStatusCounts] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-
-  const [activeTab, setActiveTab] = useState("all");
-  const [search, setSearch] = useState("");
+  const { data, loading, error, filters, updateFilters, setPage, cancelCampaign } = useAdminCampaigns();
   const [searchInput, setSearchInput] = useState("");
-  const [page, setPage] = useState(1);
+
+  const campaigns = data?.campaigns ?? [];
+  const statusCounts = data?.statusCounts ?? {};
+  const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
   // Moderation state
   const [selectedCampaign, setSelectedCampaign] = useState(null);
@@ -46,51 +37,21 @@ const AdminCampaigns = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchCampaigns = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = {
-        page,
-        limit: 20,
-        status: activeTab === "all" ? "" : activeTab,
-        search,
-      };
-      const res = await adminService.listCampaigns(params);
-      setCampaigns(res.campaigns || []);
-      setStatusCounts(res.statusCounts || {});
-      setPagination(res.pagination || { page: 1, totalPages: 1, total: 0 });
-    } catch (err) {
-      setError(err.message || "Failed to load campaigns");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, activeTab, search]);
-
-  useEffect(() => {
-    fetchCampaigns();
-  }, [fetchCampaigns]);
-
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
-    setSearch(searchInput);
+    updateFilters({ search: searchInput });
   };
 
   const handleCancelCampaign = async () => {
     if (!selectedCampaign) return;
     try {
       setActionLoading(true);
-      await adminService.cancelCampaign(selectedCampaign.id, cancelReason || "Cancelled by admin");
-      setCampaigns((prev) =>
-        prev.map((c) =>
-          c.id === selectedCampaign.id ? { ...c, status: "cancelled", lifecycleState: "cancelled" } : c
-        )
-      );
+      await cancelCampaign(selectedCampaign.id, cancelReason || "Cancelled by admin");
       setCancelDialogOpen(false);
       setCancelReason("");
+      toast.success("Campaign cancelled");
     } catch (err) {
-      alert(err.message || "Failed to cancel campaign");
+      toast.error(err.message || "Failed to cancel campaign");
     } finally {
       setActionLoading(false);
     }
@@ -110,16 +71,14 @@ const AdminCampaigns = () => {
       <div className="flex flex-wrap gap-2 border-b border-border/40 pb-3">
         {STATUS_TABS.map((tab) => {
           const count = tab.value === "all" ? pagination.total : statusCounts[tab.value] ?? 0;
+          const active = (filters.status || "all") === tab.value;
           return (
             <button
               key={tab.value}
-              onClick={() => {
-                setActiveTab(tab.value);
-                setPage(1);
-              }}
+              onClick={() => updateFilters({ status: tab.value === "all" ? "" : tab.value })}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                activeTab === tab.value
+                active
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -129,7 +88,7 @@ const AdminCampaigns = () => {
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.2 text-[10px]",
-                    activeTab === tab.value ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                    active ? "bg-white/20 text-white" : "bg-muted text-foreground"
                   )}
                 >
                   {count}
@@ -260,16 +219,16 @@ const AdminCampaigns = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={filters.page <= 1}
+              onClick={() => setPage(filters.page - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={filters.page >= pagination.totalPages}
+              onClick={() => setPage(filters.page + 1)}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -277,48 +236,34 @@ const AdminCampaigns = () => {
         </div>
       )}
 
-      {/* Cancel Campaign Modal */}
-      {cancelDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="font-heading text-lg font-semibold text-foreground">
-              Cancel Campaign
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Are you sure you want to cancel &ldquo;{selectedCampaign?.name}&rdquo;?
-            </p>
-
-            <div className="mt-4">
-              <label className="text-xs font-medium text-muted-foreground">
-                Cancellation Reason (Optional)
-              </label>
-              <Input
-                placeholder="Reason for cancellation…"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setCancelDialogOpen(false)}
-                disabled={actionLoading}
-              >
-                Keep Active
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleCancelCampaign}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Cancelling…" : "Confirm Cancel"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Cancel Campaign — shared ConfirmDialog (proper focus trap, Escape-to-close,
+          backdrop click, and entrance animation via Radix, same as every other
+          destructive confirmation in the app) with the reason field as its one
+          piece of extra content. */}
+      <ConfirmDialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          setCancelDialogOpen(open);
+          if (!open) setCancelReason("");
+        }}
+        title="Cancel Campaign"
+        description={`Are you sure you want to cancel "${selectedCampaign?.name}"?`}
+        confirmLabel="Confirm Cancel"
+        cancelLabel="Keep Active"
+        loading={actionLoading}
+        onConfirm={handleCancelCampaign}
+      >
+        <Label htmlFor="cancel-reason" className="text-xs font-medium text-muted-foreground">
+          Cancellation reason (optional)
+        </Label>
+        <Input
+          id="cancel-reason"
+          placeholder="Reason for cancellation…"
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          className="mt-1.5"
+        />
+      </ConfirmDialog>
     </div>
   );
 };

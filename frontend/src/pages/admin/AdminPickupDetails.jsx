@@ -1,7 +1,6 @@
 /**
  * AdminPickupDetails — comprehensive pickup inspection page.
  */
-import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,16 +8,13 @@ import {
   Clock,
   MapPin,
   Truck,
-  User,
-  CheckCircle2,
   AlertTriangle,
-  FileText,
   DollarSign,
   Leaf,
   Image as ImageIcon,
 } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminPickupDetails from "@/hooks/useAdminPickupDetails";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,26 +24,7 @@ const AdminPickupDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pickup, setPickup] = useState(null);
-
-  const loadPickup = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await adminService.getPickupDetails(id);
-      setPickup(data);
-    } catch (err) {
-      setError(err.message || "Failed to load pickup details");
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadPickup();
-  }, [loadPickup]);
+  const { data: pickup, loading, error } = useAdminPickupDetails(id);
 
   if (loading) {
     return (

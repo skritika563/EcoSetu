@@ -96,6 +96,12 @@ export const getStatus = (key) => {
   return { label: entry.label, className: TONES[entry.tone] };
 };
 
+/** Whether `key` has a real entry above (vs. getStatus's raw-key fallback) —
+ * lets a caller with its own fallback formatting (e.g. admin's StatusBadge,
+ * which also renders order/payment statuses this map doesn't cover) know
+ * when it's safe to defer to this map's wording. */
+export const hasStatus = (key) => Object.prototype.hasOwnProperty.call(STATUS_MAP, key);
+
 /* ─── Organization wording ───────────────────────────────────────────────── */
 /**
  * Household / NGO / school / university share one product — only wording shifts.

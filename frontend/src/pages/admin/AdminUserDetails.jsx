@@ -1,17 +1,16 @@
 /**
  * AdminUserDetails — view full user profile, role-specific metrics, and manage user status/role.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Shield,
-  User,
   Mail,
   Phone,
   MapPin,
   Calendar,
-  Award,
   Trash2,
   CheckCircle,
   XCircle,
@@ -20,13 +19,22 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminUserDetails from "@/hooks/useAdminUserDetails";
 import StatusBadge from "@/components/admin/StatusBadge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -41,11 +49,10 @@ const AdminUserDetails = () => {
   const navigate = useNavigate();
   const { user: currentAdmin } = useAuth();
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [roleStats, setRoleStats] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const { data, loading, error, toggleStatus, updateRole, deleteUser } = useAdminUserDetails(id);
+  const userData = data?.user ?? null;
+  const roleStats = data?.roleStats ?? null;
+  const recentActivity = data?.recentActivity ?? [];
 
   // Action states
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -55,36 +62,24 @@ const AdminUserDetails = () => {
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedOrgType, setSelectedOrgType] = useState("ngo");
 
-  const loadUser = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await adminService.getUserDetails(id);
-      setUserData(res.user);
-      setRoleStats(res.roleStats);
-      setRecentActivity(res.recentActivity || []);
-      setSelectedRole(res.user.role);
-      if (res.user.organizationType) setSelectedOrgType(res.user.organizationType);
-    } catch (err) {
-      setError(err.message || "Failed to load user details");
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+  // Seeded from the loaded user only when the dialog opens (not via a
+  // load-effect) — avoids a setState-in-effect purely to mirror fetched data
+  // into editable local state.
+  const openRoleDialog = () => {
+    setSelectedRole(userData.role);
+    setSelectedOrgType(userData.organizationType || "ngo");
+    setRoleDialogOpen(true);
+  };
 
   const handleToggleStatus = async () => {
     try {
       setActionLoading(true);
       const nextStatus = !userData.isActive;
-      await adminService.updateUserStatus(id, nextStatus);
-      setUserData((prev) => ({ ...prev, isActive: nextStatus }));
+      await toggleStatus(nextStatus);
       setStatusDialogOpen(false);
+      toast.success(nextStatus ? "Account activated" : "Account deactivated");
     } catch (err) {
-      alert(err.message || "Failed to update status");
+      toast.error(err.message || "Failed to update status");
     } finally {
       setActionLoading(false);
     }
@@ -94,16 +89,11 @@ const AdminUserDetails = () => {
     try {
       setActionLoading(true);
       const orgTypeParam = selectedRole === "organization" ? selectedOrgType : null;
-      await adminService.updateUserRole(id, selectedRole, orgTypeParam);
-      setUserData((prev) => ({
-        ...prev,
-        role: selectedRole,
-        organizationType: orgTypeParam,
-      }));
+      await updateRole(selectedRole, orgTypeParam);
       setRoleDialogOpen(false);
-      loadUser();
+      toast.success("Role updated");
     } catch (err) {
-      alert(err.message || "Failed to update role");
+      toast.error(err.message || "Failed to update role");
     } finally {
       setActionLoading(false);
     }
@@ -112,11 +102,12 @@ const AdminUserDetails = () => {
   const handleDeleteUser = async () => {
     try {
       setActionLoading(true);
-      await adminService.deleteUser(id);
+      await deleteUser();
       setDeleteDialogOpen(false);
+      toast.success("Account deactivated");
       navigate("/admin/users");
     } catch (err) {
-      alert(err.message || "Failed to delete user");
+      toast.error(err.message || "Failed to delete user");
     } finally {
       setActionLoading(false);
     }
@@ -184,7 +175,7 @@ const AdminUserDetails = () => {
               )}
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setRoleDialogOpen(true)}>
+            <Button variant="outline" size="sm" onClick={openRoleDialog}>
               <Shield className="mr-1.5 h-4 w-4" /> Change Role
             </Button>
 
@@ -342,65 +333,64 @@ const AdminUserDetails = () => {
         onConfirm={handleDeleteUser}
       />
 
-      {/* Role Change Modal */}
-      {roleDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="font-heading text-lg font-semibold text-foreground">Change User Role</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select a new role for {userData.name}.
-            </p>
+      {/* Role Change — real Dialog (focus trap, Escape-to-close, backdrop
+          click, entrance animation via Radix), not a hand-rolled overlay div.
+          Kept separate from ConfirmDialog since this one needs actual form
+          fields, not just a yes/no confirmation. */}
+      <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>Select a new role for {userData.name}.</DialogDescription>
+          </DialogHeader>
 
-            <div className="mt-4 space-y-4">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="role-select" className="text-xs font-medium text-muted-foreground">
+                Role
+              </Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger id="role-select" className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="household">Household</SelectItem>
+                  <SelectItem value="organization">Organization</SelectItem>
+                  <SelectItem value="collector">Scrap Collector</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedRole === "organization" && (
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Role</label>
-                <Select value={selectedRole} onValueChange={setSelectedRole}>
-                  <SelectTrigger className="mt-1">
+                <Label htmlFor="org-type-select" className="text-xs font-medium text-muted-foreground">
+                  Organization Type
+                </Label>
+                <Select value={selectedOrgType} onValueChange={setSelectedOrgType}>
+                  <SelectTrigger id="org-type-select" className="mt-1.5">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="household">Household</SelectItem>
-                    <SelectItem value="organization">Organization</SelectItem>
-                    <SelectItem value="collector">Scrap Collector</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="ngo">NGO</SelectItem>
+                    <SelectItem value="school">School</SelectItem>
+                    <SelectItem value="university">University</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              {selectedRole === "organization" && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Organization Type
-                  </label>
-                  <Select value={selectedOrgType} onValueChange={setSelectedOrgType}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ngo">NGO</SelectItem>
-                      <SelectItem value="school">School</SelectItem>
-                      <SelectItem value="university">University</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setRoleDialogOpen(false)}
-                disabled={actionLoading}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleUpdateRole} disabled={actionLoading}>
-                {actionLoading ? "Updating…" : "Save Role"}
-              </Button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleDialogOpen(false)} disabled={actionLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRole} disabled={actionLoading}>
+              {actionLoading ? "Updating…" : "Save Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,12 +1,12 @@
 /**
  * AdminPickups — monitor, filter, and review all pickups across the platform.
  */
-import { useState, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, ChevronLeft, ChevronRight, Truck, Calendar, MapPin } from "lucide-react";
+import { Search, Filter, ChevronLeft, ChevronRight, Truck, Calendar, MapPin, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminPickups from "@/hooks/useAdminPickups";
 import StatusBadge from "@/components/admin/StatusBadge";
 import EmptyState from "@/components/admin/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -33,47 +33,22 @@ const STATUS_TABS = [
 
 const AdminPickups = () => {
   const navigate = useNavigate();
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pickups, setPickups] = useState([]);
-  const [statusCounts, setStatusCounts] = useState({});
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-
-  const [activeTab, setActiveTab] = useState("all");
-  const [search, setSearch] = useState("");
+  const { data, loading, error, filters, updateFilters, setPage, collectors } = useAdminPickups();
   const [searchInput, setSearchInput] = useState("");
-  const [page, setPage] = useState(1);
 
-  const fetchPickups = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = {
-        page,
-        limit: 20,
-        status: activeTab === "all" ? "" : activeTab,
-        search,
-      };
-      const res = await adminService.listPickups(params);
-      setPickups(res.pickups || []);
-      setStatusCounts(res.statusCounts || {});
-      setPagination(res.pagination || { page: 1, totalPages: 1, total: 0 });
-    } catch (err) {
-      setError(err.message || "Failed to load pickups");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, activeTab, search]);
-
-  useEffect(() => {
-    fetchPickups();
-  }, [fetchPickups]);
+  const pickups = data?.pickups ?? [];
+  const statusCounts = data?.statusCounts ?? {};
+  const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
-    setSearch(searchInput);
+    updateFilters({ search: searchInput });
+  };
+
+  const hasDateOrCollectorFilter = filters.collectorId || filters.dateFrom || filters.dateTo;
+
+  const clearAdvancedFilters = () => {
+    updateFilters({ collectorId: "", dateFrom: "", dateTo: "" });
   };
 
   return (
@@ -90,16 +65,14 @@ const AdminPickups = () => {
       <div className="flex flex-wrap gap-2 border-b border-border/40 pb-3">
         {STATUS_TABS.map((tab) => {
           const count = tab.value === "all" ? pagination.total : statusCounts[tab.value] ?? 0;
+          const active = (filters.status || "all") === tab.value;
           return (
             <button
               key={tab.value}
-              onClick={() => {
-                setActiveTab(tab.value);
-                setPage(1);
-              }}
+              onClick={() => updateFilters({ status: tab.value === "all" ? "" : tab.value })}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                activeTab === tab.value
+                active
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -109,7 +82,7 @@ const AdminPickups = () => {
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.2 text-[10px]",
-                    activeTab === tab.value ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                    active ? "bg-white/20 text-white" : "bg-muted text-foreground"
                   )}
                 >
                   {count}
@@ -120,22 +93,70 @@ const AdminPickups = () => {
         })}
       </div>
 
-      {/* Search Bar */}
-      <div className="flex gap-2">
-        <form onSubmit={handleSearch} className="flex flex-1 gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by customer or collector name/email…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9"
-            />
+      {/* Search + Advanced Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by customer or collector name/email…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button type="submit" variant="outline" size="sm">
+              <Filter className="mr-1.5 h-3.5 w-3.5" /> Search
+            </Button>
+          </form>
+
+          {/* Collector filter */}
+          <Select
+            value={filters.collectorId || "all"}
+            onValueChange={(v) => updateFilters({ collectorId: v === "all" ? "" : v })}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Collectors" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Collectors</SelectItem>
+              {collectors.map((c) => (
+                <SelectItem key={c._id || c.id} value={c._id || c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Date range filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Pickup date</span>
           </div>
-          <Button type="submit" variant="outline" size="sm">
-            <Filter className="mr-1.5 h-3.5 w-3.5" /> Filter
-          </Button>
-        </form>
+          <Input
+            type="date"
+            value={filters.dateFrom}
+            onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+            className="h-8 w-auto text-xs"
+            aria-label="From date"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={filters.dateTo}
+            onChange={(e) => updateFilters({ dateTo: e.target.value })}
+            className="h-8 w-auto text-xs"
+            aria-label="To date"
+          />
+          {hasDateOrCollectorFilter && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearAdvancedFilters}>
+              <X className="mr-1 h-3 w-3" /> Clear filters
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pickups Table / List */}
@@ -228,16 +249,16 @@ const AdminPickups = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={filters.page <= 1}
+              onClick={() => setPage(filters.page - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={filters.page >= pagination.totalPages}
+              onClick={() => setPage(filters.page + 1)}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

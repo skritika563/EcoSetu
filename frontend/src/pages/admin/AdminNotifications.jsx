@@ -1,10 +1,11 @@
 /**
  * AdminNotifications — broadcast notifications to all users, specific roles, or specific users.
  */
-import { useState, useEffect, useCallback } from "react";
-import { Bell, Send, Users, User, Shield, CheckCircle, Clock } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Bell, Send, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminNotifications from "@/hooks/useAdminNotifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,9 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/admin/EmptyState";
 
 const AdminNotifications = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [historyError, setHistoryError] = useState(null);
+  const { history, send } = useAdminNotifications();
+  const notifications = history.data?.notifications ?? [];
 
   // Form state
   const [target, setTarget] = useState("all");
@@ -33,27 +33,10 @@ const AdminNotifications = () => {
   const [sending, setSending] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  const fetchHistory = useCallback(async () => {
-    try {
-      setLoadingHistory(true);
-      setHistoryError(null);
-      const res = await adminService.listNotifications({ limit: 20 });
-      setNotifications(res.notifications || []);
-    } catch (err) {
-      setHistoryError(err.message || "Failed to load notification history");
-    } finally {
-      setLoadingHistory(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
-
   const handleSend = async (e) => {
     e.preventDefault();
     if (!title || !description) {
-      alert("Please fill in both a title and description.");
+      toast.error("Please fill in both a title and description.");
       return;
     }
 
@@ -69,13 +52,13 @@ const AdminNotifications = () => {
         description,
       };
 
-      const res = await adminService.sendNotification(payload);
+      const res = await send(payload);
       setSuccessMessage(`Notification successfully delivered to ${res.sentCount} user(s).`);
+      toast.success(`Notification delivered to ${res.sentCount} user(s)`);
       setTitle("");
       setDescription("");
-      fetchHistory();
     } catch (err) {
-      alert(err.message || "Failed to broadcast notification");
+      toast.error(err.message || "Failed to broadcast notification");
     } finally {
       setSending(false);
     }
@@ -206,16 +189,20 @@ const AdminNotifications = () => {
             <Bell className="h-4 w-4 text-primary" /> Recent Sent Notifications
           </h2>
 
-          {loadingHistory ? (
+          {history.loading ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }, (_, i) => (
                 <Skeleton key={i} className="h-16 rounded-lg" />
               ))}
             </div>
-          ) : historyError ? (
-            <p className="text-xs text-red-600">{historyError}</p>
+          ) : history.error ? (
+            <p className="text-xs text-red-600">{history.error}</p>
           ) : notifications.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No recent notifications found.</p>
+            <EmptyState
+              icon={Bell}
+              title="No notifications yet"
+              description="Broadcasts you send will show up here."
+            />
           ) : (
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
               {notifications.map((n) => (

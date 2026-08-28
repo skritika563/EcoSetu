@@ -1,10 +1,11 @@
 /**
  * AdminMarketplace — overview of marketplace listings and orders with toggle active/inactive moderation.
  */
-import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Store, Package, ShoppingBag, ChevronLeft, ChevronRight, Eye, ShieldAlert, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Search, Filter, Store, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminMarketplace from "@/hooks/useAdminMarketplace";
 import StatusBadge from "@/components/admin/StatusBadge";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -20,83 +21,31 @@ import {
 } from "@/components/ui/select";
 
 const AdminMarketplace = () => {
-  const [overview, setOverview] = useState(null);
-  const [overviewLoading, setOverviewLoading] = useState(true);
-
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { overview, products, filters, updateFilters, setPage, toggleProductStatus } = useAdminMarketplace();
   const [searchInput, setSearchInput] = useState("");
-  const [page, setPage] = useState(1);
+
+  const productList = products.data?.products ?? [];
+  const pagination = products.data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
   // Moderation state
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadOverview = useCallback(async () => {
-    try {
-      setOverviewLoading(true);
-      const data = await adminService.getMarketplaceOverview();
-      setOverview(data);
-    } catch (err) {
-      console.error("Marketplace overview error:", err);
-    } finally {
-      setOverviewLoading(false);
-    }
-  }, []);
-
-  const loadProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = {
-        page,
-        limit: 20,
-        status: statusFilter === "all" ? "" : statusFilter,
-        search,
-      };
-      const res = await adminService.listProducts(params);
-      setProducts(res.products || []);
-      setPagination(res.pagination || { page: 1, totalPages: 1, total: 0 });
-    } catch (err) {
-      setError(err.message || "Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter, search]);
-
-  useEffect(() => {
-    loadOverview();
-  }, [loadOverview]);
-
-  useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
-
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1);
-    setSearch(searchInput);
+    updateFilters({ search: searchInput });
   };
 
   const handleToggleStatus = async () => {
     if (!selectedProduct) return;
     try {
       setActionLoading(true);
-      const nextStatus = selectedProduct.status === "active" ? "inactive" : "active";
-      await adminService.updateProductStatus(selectedProduct.id, nextStatus);
-      setProducts((prev) =>
-        prev.map((p) => (p.id === selectedProduct.id ? { ...p, status: nextStatus } : p))
-      );
+      const nextStatus = await toggleProductStatus(selectedProduct);
       setConfirmDialogOpen(false);
-      loadOverview();
+      toast.success(nextStatus === "active" ? "Listing restored" : "Listing deactivated");
     } catch (err) {
-      alert(err.message || "Failed to update product status");
+      toast.error(err.message || "Failed to update product status");
     } finally {
       setActionLoading(false);
     }
@@ -114,7 +63,7 @@ const AdminMarketplace = () => {
 
       {/* Overview Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {overviewLoading ? (
+        {overview.loading ? (
           Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
           ))
@@ -123,25 +72,25 @@ const AdminMarketplace = () => {
             <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase text-muted-foreground">Total Listings</p>
               <p className="mt-1 font-heading text-2xl font-bold text-foreground">
-                {overview?.totalListings ?? 0}
+                {overview.data?.totalListings ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase text-muted-foreground">Active Listings</p>
               <p className="mt-1 font-heading text-2xl font-bold text-emerald-600">
-                {overview?.activeListings ?? 0}
+                {overview.data?.activeListings ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase text-muted-foreground">Total Orders</p>
               <p className="mt-1 font-heading text-2xl font-bold text-foreground">
-                {overview?.totalOrders ?? 0}
+                {overview.data?.totalOrders ?? 0}
               </p>
             </div>
             <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
               <p className="text-xs font-medium uppercase text-muted-foreground">Marketplace Revenue</p>
               <p className="mt-1 font-heading text-2xl font-bold text-foreground">
-                ₹{overview?.totalRevenue?.toLocaleString() ?? 0}
+                ₹{overview.data?.totalRevenue?.toLocaleString() ?? 0}
               </p>
             </div>
           </>
@@ -166,11 +115,8 @@ const AdminMarketplace = () => {
         </form>
 
         <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
+          value={filters.status || "all"}
+          onValueChange={(v) => updateFilters({ status: v === "all" ? "" : v })}
         >
           <SelectTrigger className="w-36">
             <SelectValue placeholder="All Status" />
@@ -185,17 +131,17 @@ const AdminMarketplace = () => {
       </div>
 
       {/* Products Table */}
-      {loading ? (
+      {products.loading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
-      ) : error ? (
+      ) : products.error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+          {products.error}
         </div>
-      ) : products.length === 0 ? (
+      ) : productList.length === 0 ? (
         <EmptyState
           icon={Store}
           title="No products found"
@@ -212,7 +158,7 @@ const AdminMarketplace = () => {
             <span className="text-right">Action</span>
           </div>
 
-          {products.map((p) => (
+          {productList.map((p) => (
             <div
               key={p.id}
               className="grid items-center gap-3 border-b border-border/30 px-4 py-3 text-sm transition hover:bg-muted/20 last:border-b-0 md:grid-cols-[1fr_120px_100px_120px_120px_100px]"
@@ -280,16 +226,16 @@ const AdminMarketplace = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={filters.page <= 1}
+              onClick={() => setPage(filters.page - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={filters.page >= pagination.totalPages}
+              onClick={() => setPage(filters.page + 1)}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

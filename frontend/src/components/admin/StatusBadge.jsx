@@ -3,6 +3,7 @@
  */
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getStatus, hasStatus } from "@/config/domain";
 
 const STATUS_STYLES = {
   // Pickup / order
@@ -32,15 +33,22 @@ const STATUS_STYLES = {
   donated: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
 };
 
+// Admin-only shorthand overrides — kept intentionally distinct from
+// config/domain.js's STATUS_MAP wording where the admin table needs a
+// terser label ("Assigned" vs. "Collector assigned"). Everything else
+// defers to getStatus() below so label text never drifts between the
+// consumer-facing app and the admin panel for statuses both surfaces show.
 const STATUS_LABELS = {
   collector_assigned: "Assigned",
-  on_the_way: "On the Way",
-  in_progress: "In Progress",
 };
 
 const StatusBadge = ({ status, className }) => {
   const style = STATUS_STYLES[status] || "bg-gray-100 text-gray-600";
-  const label = STATUS_LABELS[status] || status?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const label =
+    STATUS_LABELS[status] ||
+    (hasStatus(status)
+      ? getStatus(status).label
+      : status?.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
 
   return (
     <Badge variant="outline" className={cn("border-0 text-[11px] font-semibold", style, className)}>

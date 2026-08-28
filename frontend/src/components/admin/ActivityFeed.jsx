@@ -10,7 +10,7 @@ import {
   Megaphone,
   Activity,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/format";
 
 const ICON_MAP = {
   "user-plus": UserPlus,
@@ -79,7 +79,7 @@ const ActivityFeed = ({ activities = [], loading = false }) => {
             <div className="min-w-0 flex-1">
               <p className="text-sm text-foreground leading-snug">{item.description}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                {formatRelativeTime(item.timestamp)}
               </p>
             </div>
           </motion.div>

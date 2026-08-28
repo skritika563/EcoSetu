@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/format";
 import useAdminUsers from "@/hooks/useAdminUsers";
 import StatusBadge from "@/components/admin/StatusBadge";
 import EmptyState from "@/components/admin/EmptyState";
@@ -176,7 +176,7 @@ const AdminUsers = () => {
 
                 {/* Joined */}
                 <p className="text-xs text-muted-foreground">
-                  {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : "—"}
+                  {user.createdAt ? formatRelativeTime(user.createdAt) : "—"}
                 </p>
 
                 {/* Eco Points */}

@@ -1,10 +1,9 @@
 /**
  * AdminAuditLog — view append-only administrative actions log for auditability and compliance.
  */
-import { useState, useEffect, useCallback } from "react";
-import { ClipboardList, Shield, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { ClipboardList, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminAuditLog from "@/hooks/useAdminAuditLog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/admin/EmptyState";
@@ -31,36 +30,9 @@ const ACTION_COLORS = {
 };
 
 const AdminAuditLog = () => {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-
-  const [actionFilter, setActionFilter] = useState("all");
-  const [page, setPage] = useState(1);
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = {
-        page,
-        limit: 25,
-        action: actionFilter === "all" ? "" : actionFilter,
-      };
-      const res = await adminService.getAuditLogs(params);
-      setLogs(res.logs || []);
-      setPagination(res.pagination || { page: 1, totalPages: 1, total: 0 });
-    } catch (err) {
-      setError(err.message || "Failed to load audit logs");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, actionFilter]);
-
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+  const { data, loading, error, filters, updateFilters, setPage } = useAdminAuditLog();
+  const logs = data?.logs ?? [];
+  const pagination = data?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
   return (
     <div className="space-y-6">
@@ -75,11 +47,8 @@ const AdminAuditLog = () => {
 
         {/* Filter */}
         <Select
-          value={actionFilter}
-          onValueChange={(v) => {
-            setActionFilter(v);
-            setPage(1);
-          }}
+          value={filters.action || "all"}
+          onValueChange={(v) => updateFilters({ action: v === "all" ? "" : v })}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="All Actions" />
@@ -178,16 +147,16 @@ const AdminAuditLog = () => {
             <Button
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={filters.page <= 1}
+              onClick={() => setPage(filters.page - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={filters.page >= pagination.totalPages}
+              onClick={() => setPage(filters.page + 1)}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

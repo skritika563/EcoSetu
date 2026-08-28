@@ -25,8 +25,6 @@ import {
 } from "lucide-react";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   XAxis,
@@ -34,8 +32,6 @@ import {
   Tooltip,
   CartesianGrid,
   Legend,
-  PieChart,
-  Pie,
   Cell,
 } from "recharts";
 import StatCard from "@/components/admin/StatCard";
@@ -43,7 +39,6 @@ import ActivityFeed from "@/components/admin/ActivityFeed";
 import useAdminDashboard from "@/hooks/useAdminDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useCountUp } from "@/hooks/useCountUp";
 
 const USER_TYPE_ICONS = {
   household: Home,
@@ -255,6 +250,16 @@ const AdminDashboard = () => {
             ) : weeklyPickups.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyPickups} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="weeklyRequestedColor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#D68C45" stopOpacity={0.75} />
+                      <stop offset="95%" stopColor="#D68C45" stopOpacity={0.08} />
+                    </linearGradient>
+                    <linearGradient id="weeklyCompletedColor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2C6E49" stopOpacity={0.75} />
+                      <stop offset="95%" stopColor="#2C6E49" stopOpacity={0.08} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
                   <XAxis
                     dataKey="date"
@@ -272,8 +277,8 @@ const AdminDashboard = () => {
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
-                  <Bar dataKey="total" name="Requested" fill="#D68C45" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="completed" name="Completed" fill="#2C6E49" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="total" name="Requested" fill="url(#weeklyRequestedColor)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="completed" name="Completed" fill="url(#weeklyCompletedColor)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -308,6 +313,17 @@ const AdminDashboard = () => {
                   layout="vertical"
                   margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                 >
+                  <defs>
+                    {categoryDist.map((_, index) => {
+                      const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+                      return (
+                        <linearGradient key={`catColor-${index}`} id={`catColor-${index}`} x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="5%" stopColor={color} stopOpacity={0.75} />
+                          <stop offset="95%" stopColor={color} stopOpacity={0.15} />
+                        </linearGradient>
+                      );
+                    })}
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.25} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "currentColor" }} />
                   <YAxis
@@ -328,7 +344,7 @@ const AdminDashboard = () => {
                   />
                   <Bar dataKey="weightKg" name="Weight (kg)" radius={[0, 4, 4, 0]}>
                     {categoryDist.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={`url(#catColor-${index})`} />
                     ))}
                   </Bar>
                 </BarChart>

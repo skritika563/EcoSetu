@@ -6,13 +6,10 @@ import DateRangeFilter from "@/components/admin/DateRangeFilter";
 import StatCard from "@/components/admin/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Users,
   Scale,
   Leaf,
-  DollarSign,
   Truck,
   TrendingUp,
-  Building2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -20,8 +17,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -43,6 +38,23 @@ const COLORS = [
   "#F59E0B",
   "#6366F1",
 ];
+
+/**
+ * Every chart on this page fills with a soft top-to-bottom (or left-to-right,
+ * for horizontal bars) gradient down to transparent instead of a flat solid
+ * colour — a flat fill reads as a cartoonish block once next to the app's
+ * otherwise-subtle card surfaces. One <linearGradient> per data series, kept
+ * local to the chart that defines it since SVG gradient ids are global to
+ * the document and must stay unique across every chart on the page.
+ */
+const GradientDefs = ({ id, color, horizontal = false }) => (
+  <defs>
+    <linearGradient id={id} x1="0" y1="0" x2={horizontal ? "1" : "0"} y2={horizontal ? "0" : "1"}>
+      <stop offset="5%" stopColor={color} stopOpacity={0.75} />
+      <stop offset="95%" stopColor={color} stopOpacity={0.08} />
+    </linearGradient>
+  </defs>
+);
 
 const AdminAnalytics = () => {
   const { analytics, impact, period, setPeriod } = useAdminAnalytics();
@@ -131,12 +143,7 @@ const AdminAnalytics = () => {
               {data.scrapOverTime?.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.scrapOverTime}>
-                    <defs>
-                      <linearGradient id="scrapColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2C6E49" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#2C6E49" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
+                    <GradientDefs id="scrapColor" color="#2C6E49" />
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
@@ -171,11 +178,12 @@ const AdminAnalytics = () => {
               {data.userGrowth?.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.userGrowth}>
+                    <GradientDefs id="userGrowthColor" color="#A78BFA" />
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="count" name="New Users" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" name="New Users" fill="url(#userGrowthColor)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -202,6 +210,17 @@ const AdminAnalytics = () => {
                     layout="vertical"
                     margin={{ left: 20 }}
                   >
+                    <defs>
+                      {data.scrapByCategory.map((_, index) => {
+                        const color = COLORS[index % COLORS.length];
+                        return (
+                          <linearGradient key={`categoryColor-${index}`} id={`categoryColor-${index}`} x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="5%" stopColor={color} stopOpacity={0.75} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0.15} />
+                          </linearGradient>
+                        );
+                      })}
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis
@@ -212,7 +231,11 @@ const AdminAnalytics = () => {
                       width={80}
                     />
                     <Tooltip />
-                    <Bar dataKey="weightKg" name="Weight (kg)" fill="#4C956C" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="weightKg" name="Weight (kg)" radius={[0, 4, 4, 0]}>
+                      {data.scrapByCategory.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={`url(#categoryColor-${index})`} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -235,6 +258,17 @@ const AdminAnalytics = () => {
               {data.usersByRole?.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
+                    <defs>
+                      {data.usersByRole.map((_, index) => {
+                        const color = COLORS[index % COLORS.length];
+                        return (
+                          <radialGradient key={`pieColor-${index}`} id={`pieColor-${index}`} cx="35%" cy="35%" r="70%">
+                            <stop offset="0%" stopColor={color} stopOpacity={1} />
+                            <stop offset="100%" stopColor={color} stopOpacity={0.65} />
+                          </radialGradient>
+                        );
+                      })}
+                    </defs>
                     <Pie
                       data={data.usersByRole}
                       dataKey="count"
@@ -249,7 +283,9 @@ const AdminAnalytics = () => {
                       {data.usersByRole.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
+                          fill={`url(#pieColor-${index})`}
+                          stroke="var(--card)"
+                          strokeWidth={2}
                         />
                       ))}
                     </Pie>
@@ -276,13 +312,15 @@ const AdminAnalytics = () => {
               {data.pickupVolume?.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.pickupVolume}>
+                    <GradientDefs id="totalColor" color="#EC4899" />
+                    <GradientDefs id="completedColor" color="#2C6E49" />
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                     <Tooltip />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="total" name="Total Requested" fill="#D68C45" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="completed" name="Completed" fill="#2C6E49" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total" name="Total Requested" fill="url(#totalColor)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="completed" name="Completed" fill="url(#completedColor)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -304,20 +342,23 @@ const AdminAnalytics = () => {
             <div className="h-64 w-full">
               {data.co2OverTime?.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.co2OverTime}>
+                  <AreaChart data={data.co2OverTime}>
+                    <GradientDefs id="co2Color" color="#0EA5E9" />
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="co2SavedKg"
                       name="CO₂ Saved (kg)"
-                      stroke="#10B981"
+                      stroke="#0EA5E9"
                       strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#co2Color)"
                       dot={false}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex h-full items-center justify-center text-xs text-muted-foreground">

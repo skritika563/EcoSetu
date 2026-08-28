@@ -1,41 +1,23 @@
 /**
  * AdminScrapRates — manage base scrap prices per kg across all 13 canonical categories.
  */
-import { useState, useEffect, useCallback } from "react";
-import { Scale, Edit2, Check, X, AlertCircle, Clock, User } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Scale, Edit2, Check, X } from "lucide-react";
 import { format } from "date-fns";
-import * as adminService from "@/services/adminService";
+import useAdminScrapRates from "@/hooks/useAdminScrapRates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/admin/EmptyState";
 
 const AdminScrapRates = () => {
-  const [rates, setRates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: rates, loading, error, saveRate } = useAdminScrapRates();
 
   // Edit state
   const [editingId, setEditingId] = useState(null);
   const [editPrice, setEditPrice] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const fetchRates = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await adminService.listScrapRates();
-      setRates(data || []);
-    } catch (err) {
-      setError(err.message || "Failed to load scrap rates");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRates();
-  }, [fetchRates]);
 
   const handleStartEdit = (rate) => {
     setEditingId(rate.id);
@@ -50,22 +32,18 @@ const AdminScrapRates = () => {
   const handleSaveRate = async (id) => {
     const num = parseFloat(editPrice);
     if (isNaN(num) || num < 0) {
-      alert("Please enter a valid non-negative price per kg.");
+      toast.error("Please enter a valid non-negative price per kg.");
       return;
     }
 
     try {
       setSaving(true);
-      const res = await adminService.updateScrapRate(id, num);
-      setRates((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, pricePerKg: res.pricePerKg, lastUpdated: res.lastUpdated } : r
-        )
-      );
+      await saveRate(id, num);
       setEditingId(null);
       setEditPrice("");
+      toast.success("Scrap rate updated");
     } catch (err) {
-      alert(err.message || "Failed to update scrap rate");
+      toast.error(err.message || "Failed to update scrap rate");
     } finally {
       setSaving(false);
     }
