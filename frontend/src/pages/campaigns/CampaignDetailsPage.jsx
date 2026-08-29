@@ -24,6 +24,7 @@ import {
   Images,
   Info,
   MapPin,
+  MessageCircle,
   Pencil,
   Recycle,
   Settings,
@@ -304,6 +305,15 @@ const CampaignDetailsPage = () => {
                   <Link to={`/campaigns/${campaign.id}/certificate`}>
                     <Award className="mr-1.5 h-4 w-4" />
                     View certificate
+                  </Link>
+                </Button>
+              )}
+
+              {campaign.organization && (
+                <Button variant="outline" asChild className="w-full">
+                  <Link to={`/campaigns/messages?userId=${campaign.organization.id}&contextId=${campaign.id}`}>
+                    <MessageCircle className="mr-1.5 h-4 w-4" />
+                    Message organizer
                   </Link>
                 </Button>
               )}

@@ -31,7 +31,6 @@ import { getMarketplaceCategory, getCondition } from "@/config/marketplace";
 import { formatCurrency, formatFriendlyDate, formatWeight } from "@/lib/format";
 import * as orderService from "@/services/marketplaceOrderService";
 import { loadRazorpayCheckout } from "@/lib/razorpay";
-import { notifyComingSoon } from "@/lib/comingSoon";
 
 import PageContainer from "@/components/common/PageContainer";
 import EmptyState from "@/components/common/EmptyState";
@@ -384,7 +383,11 @@ const ProductDetailsPage = () => {
             isOwner={product.isOwner}
             onViewCustomers={product.isOwner ? handleViewCustomers : undefined}
             viewingCustomers={checkingCustomers}
-            onContact={product.isOwner ? undefined : () => notifyComingSoon("Marketplace messaging")}
+            onContact={
+              product.isOwner
+                ? undefined
+                : () => navigate(`/marketplace/messages?userId=${product.seller.id}&contextId=${product.id}`)
+            }
           />
         </div>
       </div>

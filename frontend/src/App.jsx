@@ -78,6 +78,7 @@ const CertificatePage = lazy(() => import("@/pages/campaigns/CertificatePage"));
 const MyCampaignsPage = lazy(() => import("@/pages/campaigns/MyCampaignsPage"));
 const CampaignFormPage = lazy(() => import("@/pages/campaigns/CampaignFormPage"));
 const CampaignManagePage = lazy(() => import("@/pages/campaigns/CampaignManagePage"));
+const CampaignMessages = lazy(() => import("@/pages/campaigns/CampaignMessages"));
 
 // Admin module — dedicated platform administration console.
 const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
@@ -224,6 +225,7 @@ function App() {
               same as Marketplace's precedent. */}
           <Route element={<ProtectedRoute allowedRoles={["household", "organization", "collector"]} />}>
             <Route path="/campaigns" element={<CampaignsBrowse />} />
+            <Route path="/campaigns/messages" element={<CampaignMessages />} />
             <Route path="/campaigns/mine/participation" element={<MyParticipationPage />} />
             <Route path="/campaigns/:campaignId" element={<CampaignDetailsPage />} />
             <Route path="/campaigns/:campaignId/certificate" element={<CertificatePage />} />

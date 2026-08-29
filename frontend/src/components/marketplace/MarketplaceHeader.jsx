@@ -19,12 +19,14 @@ import { Link } from "react-router-dom";
 import { Heart, MessageCircle, Plus } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
+import useUnreadMessageCount from "@/hooks/useUnreadMessageCount";
 import { Button } from "@/components/ui/button";
 import MarketplaceTabs from "@/components/marketplace/MarketplaceTabs";
 import { cn } from "@/lib/utils";
 
 const MarketplaceHeader = ({ title = "Marketplace", description, action, className }) => {
   const { role } = useAuth();
+  const unreadCount = useUnreadMessageCount("marketplace_product");
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -51,11 +53,16 @@ const MarketplaceHeader = ({ title = "Marketplace", description, action, classNa
             variant="ghost"
             size="icon"
             asChild
-            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-            aria-label="Messages"
+            className="relative h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+            aria-label={unreadCount > 0 ? `Messages, ${unreadCount} unread` : "Messages"}
           >
             <Link to="/marketplace/messages">
               <MessageCircle className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           </Button>
 

@@ -16,14 +16,13 @@
  *                            (participationType discriminates the two)
  * - Certificate.js       → Issued campaign-participation certificates
  * - AdminAuditLog.js     → Append-only admin action audit trail
+ * - Conversation.js      → 1:1 direct-message thread (Marketplace + Campaigns only)
+ * - Message.js           → One message inside a Conversation
  *
  * Not yet built (deferred modules):
  * - Organization.js  → Registered organization profiles
  * - Review.js        → Standalone reviews (pickup rating is inline on Pickup;
  *                      seller rating currently derives from collectorProfile)
- * - Conversation.js / Message.js → Marketplace messaging (see
- *                      controllers/marketplaceMessageController.js for the
- *                      documented boundary — no fake persistence in the meantime)
  * - Analytics.js     → Pre-aggregated metrics (computed on the fly instead,
  *                      see analyticsController)
  */
@@ -39,6 +38,8 @@ const Campaign = require("./Campaign");
 const CampaignParticipant = require("./CampaignParticipant");
 const Certificate = require("./Certificate");
 const AdminAuditLog = require("./AdminAuditLog");
+const Conversation = require("./Conversation");
+const Message = require("./Message");
 
 module.exports = {
   User,
@@ -52,5 +53,7 @@ module.exports = {
   CampaignParticipant,
   Certificate,
   AdminAuditLog,
+  Conversation,
+  Message,
 };
 

@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Check, ClipboardCheck, UserX } from "lucide-react";
+import { Check, ClipboardCheck, MessageCircle, UserX } from "lucide-react";
 
 import { useCampaignPeople } from "@/hooks/useCampaigns";
 import * as campaignService from "@/services/campaignService";
@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const PersonRow = ({ person, onApprove, onReject, onToggleAttendance, working }) => {
+const PersonRow = ({ person, campaignId, onApprove, onReject, onToggleAttendance, working }) => {
   const meta = getParticipationStatusMeta(person.status, person.participationType, person.cancelledBy);
   const isWorking = working === person.id;
 
@@ -44,6 +44,15 @@ const PersonRow = ({ person, onApprove, onReject, onToggleAttendance, working })
 
       <div className="flex items-center gap-2">
         <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", meta.className)}>{meta.label}</span>
+
+        {person.user && (
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" asChild>
+            <Link to={`/campaigns/messages?userId=${person.user.id}&contextId=${campaignId}`}>
+              <MessageCircle className="mr-1 h-3 w-3" />
+              Message
+            </Link>
+          </Button>
+        )}
 
         {person.status === "registered" && (
           <>
@@ -161,6 +170,7 @@ const ParticipantsPanel = ({ campaignId, type, onCampaignChanged }) => {
             <PersonRow
               key={person.id}
               person={person}
+              campaignId={campaignId}
               onApprove={handleApprove}
               onReject={handleReject}
               onToggleAttendance={handleToggleAttendance}

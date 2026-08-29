@@ -6,9 +6,10 @@
  */
 
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, UserCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, Plus, UserCircle } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
+import useUnreadMessageCount from "@/hooks/useUnreadMessageCount";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ const CampaignHeader = ({
   const { role } = useAuth();
   const navigate = useNavigate();
   const isOrganizer = role === "organization";
+  const unreadCount = useUnreadMessageCount("campaign");
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -63,6 +65,23 @@ const CampaignHeader = ({
               </Link>
             </Button>
           )}
+
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="relative h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+            aria-label={unreadCount > 0 ? `Messages, ${unreadCount} unread` : "Messages"}
+          >
+            <Link to="/campaigns/messages">
+              <MessageCircle className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
+          </Button>
 
           {action ??
             (showCreateAction && isOrganizer && (

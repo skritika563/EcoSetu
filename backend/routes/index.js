@@ -18,14 +18,14 @@
  * - userRoutes.js           → /api/users/* (one general public profile,
  *                             shared by Marketplace's seller view and
  *                             Campaigns' participant/volunteer lookup)       ✅
+ * - adminRoutes.js          → /api/admin/*                                  ✅
+ * - messageRoutes.js        → /api/messages/* (1:1 direct messaging,
+ *                             Marketplace + Campaigns only — see
+ *                             models/Conversation.js)                       ✅
  *
- * Not yet built (Admin deferred):
+ * Not yet built (deferred modules):
  * - organizationRoutes.js   → /api/organizations/*
  * - reviewRoutes.js         → /api/reviews/*
- * - adminRoutes.js          → /api/admin/*
- * - messageRoutes.js        → /api/marketplace/messages/* (see
- *                             MarketplaceMessages.jsx for the documented
- *                             boundary — no fake persistence in the meantime)
  */
 
 module.exports = {};
