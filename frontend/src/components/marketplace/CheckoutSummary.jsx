@@ -15,7 +15,7 @@
  */
 
 import { useState } from "react";
-import { Loader2, Package, ShieldCheck, Truck } from "lucide-react";
+import { Gift, Loader2, Package, ShieldCheck, Truck } from "lucide-react";
 
 import { FULFILLMENT_METHODS } from "@/config/marketplace";
 import { formatCurrency } from "@/lib/format";
@@ -41,6 +41,11 @@ const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAdd
   const [quantity, setQuantity] = useState(1);
   const [fulfillment, setFulfillment] = useState(product?.fulfillment?.pickup ? "pickup" : "delivery");
   const [addressId, setAddressId] = useState("");
+  // Optional Eco Points marketplace-credit code (Rewards page). Not
+  // validated here — the preview total above stays a rough estimate either
+  // way (see this file's header comment); the server applies and checks
+  // the discount for real when payment is opened.
+  const [redemptionCode, setRedemptionCode] = useState("");
 
   if (!product) return null;
 
@@ -78,6 +83,7 @@ const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAdd
             contactPhone: selectedAddress.contactPhone,
           }
         : undefined,
+      redemptionCode: redemptionCode.trim() || undefined,
     });
   };
 
@@ -178,9 +184,24 @@ const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAdd
             </div>
           )}
 
+          {/* Reward code — optional Eco Points marketplace-credit */}
+          <div className="space-y-1.5">
+            <Label htmlFor="checkout-reward-code" className="flex items-center gap-1.5">
+              <Gift className="h-3.5 w-3.5 text-primary" />
+              Have a reward code?
+            </Label>
+            <Input
+              id="checkout-reward-code"
+              placeholder="ECO-XXXX-XXXX (optional)"
+              value={redemptionCode}
+              onChange={(e) => setRedemptionCode(e.target.value.toUpperCase())}
+              className="font-mono uppercase"
+            />
+          </div>
+
           {/* Total */}
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-3">
-            <span className="text-sm font-semibold text-foreground">Total</span>
+            <span className="text-sm font-semibold text-foreground">Total (before any reward code)</span>
             <span className="font-heading text-lg font-semibold tabular-nums text-foreground">
               {formatCurrency(previewTotal, { decimals: 2 })}
             </span>

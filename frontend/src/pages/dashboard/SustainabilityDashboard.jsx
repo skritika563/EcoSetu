@@ -27,14 +27,16 @@ import { ListSkeleton, StatsSkeleton } from "@/components/common/SectionSkeleton
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import StatCard from "@/components/common/StatCard";
 
-import ImpactSummary from "@/components/home/ImpactSummary";
+import { buildImpactStats } from "@/config/impactStats";
 import CollectionBreakdown from "@/components/home/CollectionBreakdown";
 import RecentActivity from "@/components/home/RecentActivity";
 import EcoJourney from "@/components/sustainability/EcoJourney";
 import ImpactChart from "@/components/sustainability/ImpactChart";
 import EcoStreak from "@/components/sustainability/EcoStreak";
 import AchievementGrid from "@/components/sustainability/AchievementGrid";
+import EcoPointsShowcase from "@/components/sustainability/EcoPointsShowcase";
 
 /* ─── Role-specific copy ─────────────────────────────────────────────────── */
 const getCopy = (role, user) => {
@@ -96,6 +98,7 @@ const SustainabilityDashboard = () => {
   const isOrganization = role === "organization";
   const summary = data?.summary;
   const hasActivity = (summary?.activities ?? 0) > 0;
+  const impactStats = summary ? buildImpactStats(summary, isOrganization) : [];
 
   return (
     <PageContainer className="space-y-8 py-6 sm:py-8">
@@ -156,12 +159,42 @@ const SustainabilityDashboard = () => {
         <TooltipProvider delayDuration={150}>
           <div className="space-y-8">
             {/* ─── Impact overview ─────────────────────────────────── */}
+            {/* Bento layout: Scrap Recycled / CO₂ Saved / Eco Activities /
+                Trees Planted fill a 2×2 block across the first two (wider)
+                columns; Eco Points gets its own tall showcase card in the
+                third column, spanning both rows, since it's the one figure
+                on this page you can actually go spend (see
+                EcoPointsShowcase's link into /rewards). */}
             <section aria-label="Impact overview">
-              <ImpactSummary
-                impact={summary}
-                isOrganization={isOrganization}
-                metrics={["recycled", "co2", "points", "activities"]}
-              />
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-[1.15fr_1.15fr_1fr] lg:grid-rows-2">
+                {["recycled", "co2", "activities", "treesPlanted"].map((key, index) => {
+                  const stat = impactStats.find((s) => s.key === key);
+                  if (!stat) return null;
+                  const position = [
+                    "lg:col-start-1 lg:row-start-1",
+                    "lg:col-start-2 lg:row-start-1",
+                    "lg:col-start-1 lg:row-start-2",
+                    "lg:col-start-2 lg:row-start-2",
+                  ][index];
+                  return (
+                    <div key={stat.key} className={position}>
+                      <StatCard
+                        label={stat.label}
+                        value={stat.value}
+                        format={stat.format}
+                        icon={stat.icon}
+                        iconClassName={stat.iconClassName}
+                        hint={stat.hint}
+                        delay={index * 0.06}
+                      />
+                    </div>
+                  );
+                })}
+
+                <div className="col-span-2 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-2">
+                  <EcoPointsShowcase value={summary.ecoPoints} delay={0.24} />
+                </div>
+              </div>
             </section>
 
             {/* ─── Signature: plants + tree ────────────────────────── */}

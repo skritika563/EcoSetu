@@ -11,6 +11,7 @@ const { MAX_IMAGES_PER_PICKUP } = require("../middleware/uploadMiddleware");
 const { INSTANT_FEE_RUPEES, verifyPaymentSignature } = require("../services/razorpayService");
 const { isValidCityName } = require("../utils/textNormalize");
 const { isValidScrapCategory } = require("../constants/categories");
+const { findUsableRedemption, consumeRedemption, restoreRedemption } = require("../services/redemptionService");
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -72,6 +73,10 @@ const createPickup = async (req, res) => {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
+      // Eco Points redemption code for a "Free Priority Pickup"-type reward
+      // (Reward.effect === "pickup_fee_waiver") — see the instant-fee block
+      // below for how this replaces the Razorpay requirement entirely.
+      redemptionCode,
     } = req.body;
 
     if (!pickupAddress?.line || !pickupAddress?.city) {
@@ -123,73 +128,107 @@ const createPickup = async (req, res) => {
     }
 
     let instantFeePayment = null;
+    let waivedRedemption = null;
+    let feeWaived = false;
     if (pickupType === "instant") {
-      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-        return res.status(402).json({
-          success: false,
-          message: "Payment is required to confirm an instant pickup.",
-          error: { code: "PAYMENT_REQUIRED" },
+      // A "Free Priority Pickup" reward code replaces the Razorpay
+      // requirement ENTIRELY — there's nothing to charge ₹0 for, so this
+      // isn't "pay less", it's "skip payment". Checked before the payment
+      // branch so a valid code never even asks the frontend to open
+      // Razorpay Checkout.
+      if (redemptionCode) {
+        waivedRedemption = await consumeRedemption(redemptionCode, req.user._id, "pickup_fee_waiver");
+        if (!waivedRedemption) {
+          return res.status(400).json({
+            success: false,
+            message: "That reward code is invalid, expired, already used, or doesn't apply to instant pickups.",
+            error: { code: "INVALID_REDEMPTION_CODE" },
+          });
+        }
+        feeWaived = true;
+      } else {
+        if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+          return res.status(402).json({
+            success: false,
+            message: "Payment is required to confirm an instant pickup.",
+            error: { code: "PAYMENT_REQUIRED" },
+          });
+        }
+        const verified = verifyPaymentSignature({
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
         });
+        if (!verified) {
+          return res.status(402).json({
+            success: false,
+            message: "We couldn't verify your payment. Please try again.",
+            error: { code: "PAYMENT_VERIFICATION_FAILED" },
+          });
+        }
+        // A quick pre-check for a clear error message on the common case — the
+        // unique sparse index on instantFeePayment.razorpayPaymentId (see
+        // models/Pickup.js) is what actually closes the race condition if two
+        // requests with the same payment somehow land at the same instant.
+        const alreadyUsed = await Pickup.exists({ "instantFeePayment.razorpayPaymentId": razorpayPaymentId });
+        if (alreadyUsed) {
+          return res.status(409).json({
+            success: false,
+            message: "This payment has already been used for another pickup.",
+            error: { code: "CONFLICT" },
+          });
+        }
+        instantFeePayment = {
+          razorpayOrderId,
+          razorpayPaymentId,
+          amount: INSTANT_FEE_RUPEES,
+          paidAt: new Date(),
+        };
       }
-      const verified = verifyPaymentSignature({
-        orderId: razorpayOrderId,
-        paymentId: razorpayPaymentId,
-        signature: razorpaySignature,
-      });
-      if (!verified) {
-        return res.status(402).json({
-          success: false,
-          message: "We couldn't verify your payment. Please try again.",
-          error: { code: "PAYMENT_VERIFICATION_FAILED" },
-        });
-      }
-      // A quick pre-check for a clear error message on the common case — the
-      // unique sparse index on instantFeePayment.razorpayPaymentId (see
-      // models/Pickup.js) is what actually closes the race condition if two
-      // requests with the same payment somehow land at the same instant.
-      const alreadyUsed = await Pickup.exists({ "instantFeePayment.razorpayPaymentId": razorpayPaymentId });
-      if (alreadyUsed) {
-        return res.status(409).json({
-          success: false,
-          message: "This payment has already been used for another pickup.",
-          error: { code: "CONFLICT" },
-        });
-      }
-      instantFeePayment = {
-        razorpayOrderId,
-        razorpayPaymentId,
-        amount: INSTANT_FEE_RUPEES,
-        paidAt: new Date(),
-      };
     }
 
-    const pickup = await Pickup.create({
-      userId: req.user._id,
-      pickupType,
-      status: "pending",
-      pickupAddress,
-      pickupDate,
-      pickupTimeSlot: pickupTimeSlot || null,
-      estimatedCategories,
-      itemCount: itemCount ?? null,
-      estimatedWeight: estimatedWeight ?? null,
-      classificationSource,
-      aiPrediction: aiPrediction ?? null,
-      imageCount,
-      notes: notes || null,
-      isDonation,
-      relatedCampaign: relatedCampaign || null,
-      serviceCharge: getServiceCharge(pickupType),
-      instantFeePayment,
-      statusHistory: [
-        {
-          status: "pending",
-          at: new Date(),
-          note: pickupType === "instant" ? "Instant pickup requested" : "Pickup requested",
-          changedBy: req.user._id,
-        },
-      ],
-    });
+    let pickup;
+    try {
+      pickup = await Pickup.create({
+        userId: req.user._id,
+        pickupType,
+        status: "pending",
+        pickupAddress,
+        pickupDate,
+        pickupTimeSlot: pickupTimeSlot || null,
+        estimatedCategories,
+        itemCount: itemCount ?? null,
+        estimatedWeight: estimatedWeight ?? null,
+        classificationSource,
+        aiPrediction: aiPrediction ?? null,
+        imageCount,
+        notes: notes || null,
+        isDonation,
+        relatedCampaign: relatedCampaign || null,
+        serviceCharge: feeWaived ? 0 : getServiceCharge(pickupType),
+        instantFeePayment,
+        statusHistory: [
+          {
+            status: "pending",
+            at: new Date(),
+            note:
+              pickupType === "instant"
+                ? feeWaived
+                  ? `Instant pickup requested (platform fee waived via reward ${waivedRedemption.code})`
+                  : "Instant pickup requested"
+                : "Pickup requested",
+            changedBy: req.user._id,
+          },
+        ],
+      });
+    } catch (createError) {
+      // The redemption was already spent — give it back, since the pickup
+      // it was paying for was not actually created. Mirrors the
+      // stock-refund pattern productController/marketplaceOrderController
+      // use for the same "claimed something, then the action failed" shape.
+      if (waivedRedemption) await restoreRedemption(waivedRedemption._id);
+      throw createError;
+    }
 
     await pickup.populate("userId", POPULATE_FIELDS.user);
 

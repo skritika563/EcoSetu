@@ -147,6 +147,16 @@ export const generateListingWithAi = async ({ notes, category, condition, materi
   return response.data.data;
 };
 
+/**
+ * → GET /api/marketplace/inventory
+ * A collector's material stock: what they've collected on completed
+ * pickups vs what they've already turned into listings.
+ */
+export const getInventory = async () => {
+  const response = await api.get("/marketplace/inventory");
+  return response.data.data;
+};
+
 export default {
   getProducts,
   getProductSections,
@@ -161,5 +171,6 @@ export default {
   getSellerProfile,
   getMyMarketplaceStats,
   getEligiblePickups,
+  getInventory,
   generateListingWithAi,
 };

@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Settings,
   ShieldCheck,
+  Gift,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { key: "campaigns",    label: "Campaigns",       to: "/admin/campaigns",        icon: Megaphone },
   { key: "analytics",    label: "Reports & Analytics", to: "/admin/analytics",    icon: BarChart3 },
   { key: "scrap-rates",  label: "Scrap Rates",     to: "/admin/scrap-rates",      icon: Scale },
+  { key: "redemptions",  label: "Redemptions",     to: "/admin/redemptions",      icon: Gift },
   { key: "notifications",label: "Notifications",   to: "/admin/notifications",    icon: Bell },
   { key: "audit-log",    label: "Audit Log",       to: "/admin/audit-log",        icon: ClipboardList },
   { key: "settings",     label: "Settings",        to: "/admin/settings",         icon: Settings },

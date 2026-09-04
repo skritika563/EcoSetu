@@ -52,6 +52,9 @@ const PickupDetailsPage = lazy(() => import("@/pages/pickups/PickupDetailsPage")
 const CollectorJobsPage = lazy(() => import("@/pages/pickups/CollectorJobsPage"));
 const CollectorJobDetailsPage = lazy(() => import("@/pages/pickups/CollectorJobDetailsPage"));
 const ScanScrapPage = lazy(() => import("@/pages/scan/ScanScrapPage"));
+const InventoryPage = lazy(() => import("@/pages/inventory/InventoryPage"));
+const EarningsPage = lazy(() => import("@/pages/earnings/EarningsPage"));
+const RewardsPage = lazy(() => import("@/pages/rewards/RewardsPage"));
 
 // Marketplace module — every authenticated role browses, buys AND sells here.
 const MarketplaceBrowse = lazy(() => import("@/pages/marketplace/MarketplaceBrowse"));
@@ -93,6 +96,7 @@ const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
 const AdminScrapRates = lazy(() => import("@/pages/admin/AdminScrapRates"));
 const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
 const AdminAuditLog = lazy(() => import("@/pages/admin/AdminAuditLog"));
+const AdminRedemptions = lazy(() => import("@/pages/admin/AdminRedemptions"));
 const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
 
 /**
@@ -160,6 +164,10 @@ function App() {
                 just with no :sellerId/:userId param, so it falls back to
                 the signed-in user's own id and shows the Edit button. */}
             <Route path="/profile" element={<UserProfilePage />} />
+            {/* Rewards — the Eco Points redemption catalogue. Open to every
+                signed-in non-admin role: points are earned by households,
+                organizations and collectors alike. */}
+            <Route path="/rewards" element={<RewardsPage />} />
           </Route>
 
           {/* Pickups — household/organization booking + tracking.
@@ -176,6 +184,10 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["collector", "admin"]} />}>
             <Route path="/jobs" element={<CollectorJobsPage />} />
             <Route path="/jobs/:jobId" element={<CollectorJobDetailsPage />} />
+            {/* Inventory — a collector's derived material stock (collected on
+                completed pickups, minus what is already listed). */}
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/earnings" element={<EarningsPage />} />
           </Route>
 
           {/* Scan Scrap — standalone AI classification tool. Reachable from the
@@ -280,6 +292,7 @@ function App() {
             <Route path="/admin/scrap-rates" element={<AdminScrapRates />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+            <Route path="/admin/redemptions" element={<AdminRedemptions />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
         </Route>

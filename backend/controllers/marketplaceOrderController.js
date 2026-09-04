@@ -9,6 +9,13 @@ const {
   refundPayment,
 } = require("../services/razorpayService");
 const { notify } = require("../services/notificationService");
+const { findUsableRedemption, consumeRedemption, restoreRedemption } = require("../services/redemptionService");
+
+/**
+ * Applies a marketplace_discount redemption to a base total — floored at
+ * ₹1 rather than ₹0, since Razorpay does not accept a zero-amount order.
+ */
+const applyDiscount = (totalAmount, discountRupees) => Math.max(1, Math.round((totalAmount - discountRupees) * 100) / 100);
 
 /**
  * ──────────────────────────────────────────────────────────────────────────────
@@ -91,7 +98,7 @@ const validatePurchase = (product, userId, { fulfillmentMethod, deliveryAddress 
  */
 const createCheckoutOrder = async (req, res) => {
   try {
-    const { productId, quantity = 1, fulfillmentMethod = "pickup", deliveryAddress } = req.body;
+    const { productId, quantity = 1, fulfillmentMethod = "pickup", deliveryAddress, redemptionCode } = req.body;
 
     if (!mongoose.isValidObjectId(productId)) {
       return res.status(404).json({ success: false, message: "Listing not found.", error: { code: "NOT_FOUND" } });
@@ -105,9 +112,29 @@ const createCheckoutOrder = async (req, res) => {
 
     const { totalAmount } = calculateOrderTotal(product, quantity);
 
+    // Eco Points marketplace-credit code — validated but NOT consumed here.
+    // No payment has happened yet at this step, so claiming it now would
+    // burn it on a checkout the buyer might still abandon; it's actually
+    // spent in createOrder below, once payment is real. This is only a
+    // preview so the Razorpay order is opened for the already-discounted
+    // amount.
+    let discountRupees = 0;
+    if (redemptionCode) {
+      const redemption = await findUsableRedemption(redemptionCode, req.user._id, "marketplace_discount");
+      if (!redemption) {
+        return res.status(400).json({
+          success: false,
+          message: "That reward code is invalid, expired, already used, or doesn't apply to marketplace purchases.",
+          error: { code: "INVALID_REDEMPTION_CODE" },
+        });
+      }
+      discountRupees = redemption.effectValue;
+    }
+    const payableAmount = discountRupees > 0 ? applyDiscount(totalAmount, discountRupees) : totalAmount;
+
     const order = await createMarketplaceCheckoutOrder({
       userId: req.user._id.toString(),
-      amountRupees: totalAmount,
+      amountRupees: payableAmount,
       productId: product._id.toString(),
     });
 
@@ -162,6 +189,7 @@ const createOrder = async (req, res) => {
     razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature,
+    redemptionCode,
   } = req.body;
 
   if (!mongoose.isValidObjectId(productId)) {
@@ -180,12 +208,13 @@ const createOrder = async (req, res) => {
 
   let reservedProduct = null;
   let reservedQty = 0;
+  let claimedRedemption = null;
 
   try {
     const product = await Product.findById(productId);
     validatePurchase(product, req.user._id, { fulfillmentMethod, deliveryAddress });
 
-    const { unitPrice, quantity: qty, totalAmount } = calculateOrderTotal(product, quantity);
+    const { unitPrice, quantity: qty, totalAmount: baseTotalAmount } = calculateOrderTotal(product, quantity);
 
     // Verify BEFORE touching stock — an invalid or forged proof must never
     // reserve inventory.
@@ -215,6 +244,29 @@ const createOrder = async (req, res) => {
       });
     }
 
+    // Consume the Eco Points discount code NOW — this is the real spend,
+    // and it happens only once payment is verified. `totalAmount` from here
+    // on is the DISCOUNTED figure, matching what Razorpay actually charged
+    // at checkout (createCheckoutOrder priced the payment the same way —
+    // see applyDiscount there).
+    let totalAmount = baseTotalAmount;
+    if (redemptionCode) {
+      claimedRedemption = await consumeRedemption(redemptionCode, req.user._id, "marketplace_discount");
+      if (!claimedRedemption) {
+        // Payment already went through for the discounted amount the buyer
+        // saw at checkout — if the code can't be claimed now (someone beat
+        // them to it in another tab, e.g.), refund rather than silently
+        // charge full price for a discount that didn't apply.
+        await refundPayment(razorpayPaymentId, baseTotalAmount);
+        return res.status(409).json({
+          success: false,
+          message: "That reward code was already used — your payment has been refunded. Please try again.",
+          error: { code: "INVALID_REDEMPTION_CODE" },
+        });
+      }
+      totalAmount = applyDiscount(baseTotalAmount, claimedRedemption.effectValue);
+    }
+
     /**
      * THE OVERSELL GUARD. Matching on `quantity: { $gte: qty }` inside the
      * same findOneAndUpdate that decrements makes the check-and-reserve a
@@ -231,7 +283,9 @@ const createOrder = async (req, res) => {
     if (!reservedProduct) {
       // The buyer already paid, but the item sold out in the moment between
       // payment and this reservation. Refund rather than leave them charged
-      // for nothing.
+      // for nothing, and give the reward code back — it was never actually
+      // used for a completed purchase.
+      if (claimedRedemption) await restoreRedemption(claimedRedemption._id);
       await refundPayment(razorpayPaymentId, totalAmount);
       return res.status(409).json({
         success: false,
@@ -301,6 +355,14 @@ const createOrder = async (req, res) => {
       data: { order: serializeOrder(populated) },
     });
   } catch (error) {
+    // The reward code was claimed but the order it was paying for never got
+    // written — give it back, same reasoning as the stock rollback below.
+    if (claimedRedemption) {
+      await restoreRedemption(claimedRedemption._id).catch((rollbackError) =>
+        console.error("CRITICAL: redemption rollback failed:", rollbackError.message)
+      );
+    }
+
     // COMPENSATING ROLLBACK: stock was decremented but the order never got
     // written. Put it back, or the item is silently lost from inventory.
     // (Mongo transactions would be cleaner but need a replica set; this is

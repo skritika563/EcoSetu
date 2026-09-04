@@ -108,12 +108,13 @@ const ProductDetailsPage = () => {
    * for the instant-pickup fee — same wrapping-callbacks-in-a-promise
    * approach, same reject-rather-than-silently-resolve on cancel/failure.
    */
-  const collectOrderPayment = async ({ quantity, fulfillmentMethod, deliveryAddress }, onReady) => {
+  const collectOrderPayment = async ({ quantity, fulfillmentMethod, deliveryAddress, redemptionCode }, onReady) => {
     const checkoutOrder = await orderService.createCheckoutOrder({
       productId: product.id,
       quantity,
       fulfillmentMethod,
       deliveryAddress,
+      redemptionCode,
     });
     const Razorpay = await loadRazorpayCheckout();
     onReady?.();
@@ -150,7 +151,7 @@ const ProductDetailsPage = () => {
     });
   };
 
-  const handlePlaceOrder = async ({ quantity, fulfillmentMethod, deliveryAddress }) => {
+  const handlePlaceOrder = async ({ quantity, fulfillmentMethod, deliveryAddress, redemptionCode }) => {
     setPlacing(true);
 
     // Close THIS dialog before opening Razorpay's, rather than after payment
@@ -173,7 +174,7 @@ const ProductDetailsPage = () => {
     let paymentProof;
     try {
       paymentProof = await collectOrderPayment(
-        { quantity, fulfillmentMethod, deliveryAddress },
+        { quantity, fulfillmentMethod, deliveryAddress, redemptionCode },
         () => toast.dismiss(preparingToast)
       );
     } catch (err) {
@@ -189,6 +190,7 @@ const ProductDetailsPage = () => {
         quantity,
         fulfillmentMethod,
         deliveryAddress,
+        redemptionCode,
         ...paymentProof,
       });
       toast.success("Order placed — the seller has been notified.");

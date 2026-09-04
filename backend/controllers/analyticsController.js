@@ -1,4 +1,6 @@
 const Pickup = require("../models/Pickup");
+const MarketplaceOrder = require("../models/MarketplaceOrder");
+const Redemption = require("../models/Redemption");
 const { CO2_PER_KG } = require("../services/ecoScoreService");
 const { toTitleCase } = require("../utils/textNormalize");
 
@@ -234,6 +236,18 @@ const getSustainabilityTrends = async (req, res) => {
       { $group: { _id: "$verifiedCategories.category", weightKg: { $sum: "$verifiedCategories.weightKg" } } },
     ]);
 
+    // Trees planted via the Rewards catalogue — counted the moment an admin
+    // marks a tree_planted-impact redemption "fulfilled" (see
+    // adminController.updateRedemptionStatus and Reward.js's `impactType`
+    // field). Not role-scoped like the pickup aggregations above — any role
+    // can redeem rewards, so this is keyed on userId alone, lifetime (not
+    // just this calendar year, unlike the monthly pickup trend).
+    const treesPlanted = await Redemption.countDocuments({
+      userId: req.user._id,
+      impactType: "tree_planted",
+      status: "fulfilled",
+    });
+
     const MONTH_NAMES = [
       ["January", "Jan"], ["February", "Feb"], ["March", "Mar"], ["April", "Apr"],
       ["May", "May"], ["June", "Jun"], ["July", "Jul"], ["August", "Aug"],
@@ -287,6 +301,7 @@ const getSustainabilityTrends = async (req, res) => {
           ...summary,
           co2Saved: Math.round(summary.wasteRecycled * CO2_PER_KG * 10) / 10,
           scrapRecycledKg: summary.wasteRecycled,
+          treesPlanted,
         },
       },
     });
@@ -300,4 +315,140 @@ const getSustainabilityTrends = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardSummary, getSustainabilityTrends };
+/**
+ * GET /api/analytics/earnings?months=6 — a collector's money view.
+ *
+ * A collector's economics have two real sides in this product:
+ *   INCOME  — marketplace sales of recovered material (MarketplaceOrder
+ *             where they are the seller, once the order is past "pending").
+ *   PAYOUTS — what they paid households/organizations for scrap at pickup
+ *             (Pickup.totalAmount on their completed pickups, excluding
+ *             donations, which by definition have no payout).
+ * Net is income minus payouts. Nothing here is estimated — both sides are
+ * amounts already recorded on real documents.
+ *
+ * Collector-only: for any other role the two pipelines simply match nothing
+ * and it returns zeros, rather than 403-ing — the route is only ever linked
+ * from the collector surface.
+ */
+const getEarnings = async (req, res) => {
+  try {
+    const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 24);
+    const since = new Date();
+    since.setMonth(since.getMonth() - (months - 1));
+    since.setDate(1);
+    since.setHours(0, 0, 0, 0);
+
+    const monthKey = { $dateToString: { format: "%Y-%m", date: "$createdAt" } };
+
+    const [salesRows, payoutRows, lifetime, pendingOrders, recentSales] = await Promise.all([
+      MarketplaceOrder.aggregate([
+        {
+          $match: {
+            sellerId: req.user._id,
+            orderStatus: { $in: ["confirmed", "ready", "completed"] },
+            createdAt: { $gte: since },
+          },
+        },
+        { $group: { _id: monthKey, total: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
+      ]),
+      Pickup.aggregate([
+        {
+          $match: {
+            collectorId: req.user._id,
+            status: "completed",
+            isDonation: false,
+            createdAt: { $gte: since },
+          },
+        },
+        { $group: { _id: monthKey, total: { $sum: "$totalAmount" }, pickups: { $sum: 1 } } },
+      ]),
+      Promise.all([
+        MarketplaceOrder.aggregate([
+          { $match: { sellerId: req.user._id, orderStatus: { $in: ["confirmed", "ready", "completed"] } } },
+          { $group: { _id: null, total: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
+        ]),
+        Pickup.aggregate([
+          { $match: { collectorId: req.user._id, status: "completed", isDonation: false } },
+          { $group: { _id: null, total: { $sum: "$totalAmount" }, pickups: { $sum: 1 } } },
+        ]),
+      ]),
+      MarketplaceOrder.countDocuments({ sellerId: req.user._id, orderStatus: "pending" }),
+      MarketplaceOrder.find({
+        sellerId: req.user._id,
+        orderStatus: { $in: ["confirmed", "ready", "completed"] },
+      })
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .populate("productId", "title")
+        .select("totalAmount orderStatus createdAt productId")
+        .lean(),
+    ]);
+
+    const salesByMonth = new Map(salesRows.map((r) => [r._id, r]));
+    const payoutsByMonth = new Map(payoutRows.map((r) => [r._id, r]));
+
+    // Emit a row for EVERY month in the window, including months with no
+    // activity — a chart with gaps silently misreads as "no data" rather
+    // than "zero that month".
+    const monthly = [];
+    for (let i = 0; i < months; i += 1) {
+      const d = new Date(since);
+      d.setMonth(since.getMonth() + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const sales = salesByMonth.get(key);
+      const payouts = payoutsByMonth.get(key);
+      const income = Math.round((sales?.total ?? 0) * 100) / 100;
+      const paid = Math.round((payouts?.total ?? 0) * 100) / 100;
+      monthly.push({
+        month: key,
+        label: d.toLocaleString("en-IN", { month: "short" }),
+        income,
+        payouts: paid,
+        net: Math.round((income - paid) * 100) / 100,
+        orders: sales?.orders ?? 0,
+        pickups: payouts?.pickups ?? 0,
+      });
+    }
+
+    const [lifetimeSales, lifetimePayouts] = lifetime;
+    const totalIncome = Math.round((lifetimeSales[0]?.total ?? 0) * 100) / 100;
+    const totalPayouts = Math.round((lifetimePayouts[0]?.total ?? 0) * 100) / 100;
+
+    const thisMonth = monthly[monthly.length - 1] ?? { income: 0, payouts: 0, net: 0 };
+
+    return res.status(200).json({
+      success: true,
+      message: "Earnings retrieved",
+      data: {
+        summary: {
+          totalIncome,
+          totalPayouts,
+          netEarnings: Math.round((totalIncome - totalPayouts) * 100) / 100,
+          totalOrders: lifetimeSales[0]?.orders ?? 0,
+          totalPickups: lifetimePayouts[0]?.pickups ?? 0,
+          pendingOrders,
+          thisMonthIncome: thisMonth.income,
+          thisMonthNet: thisMonth.net,
+        },
+        monthly,
+        recentSales: recentSales.map((o) => ({
+          id: o._id.toString(),
+          title: o.productId?.title ?? "Listing removed",
+          amount: o.totalAmount,
+          status: o.orderStatus,
+          createdAt: o.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Earnings error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while loading your earnings.",
+      error: { code: "INTERNAL_ERROR" },
+    });
+  }
+};
+
+module.exports = { getDashboardSummary, getSustainabilityTrends, getEarnings };

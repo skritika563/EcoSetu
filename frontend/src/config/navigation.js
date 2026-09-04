@@ -39,7 +39,7 @@ const GENERAL_NAV = [
   { key: "pickups", label: "Pickups", to: "/pickups", icon: Truck, available: true },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true },
   { key: "campaigns", label: "Campaigns", to: "/campaigns", icon: Megaphone, available: true },
-  { key: "rewards", label: "Rewards", to: "/rewards", icon: Gift, available: false },
+  { key: "rewards", label: "Rewards", to: "/rewards", icon: Gift, available: true },
 ];
 
 /** Organizations get the same nav as everyone else — Campaigns is already in it. */
@@ -56,7 +56,7 @@ const COLLECTOR_NAV = [
   { key: "jobs", label: "Jobs", to: "/jobs", icon: ClipboardList, available: true },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true },
   { key: "campaigns", label: "Campaigns", to: "/campaigns", icon: Megaphone, available: true },
-  { key: "earnings", label: "Earnings", to: "/earnings", icon: Wallet, available: false },
+  { key: "earnings", label: "Earnings", to: "/earnings", icon: Wallet, available: true },
 ];
 
 /**
@@ -95,14 +95,14 @@ const ORGANIZATION_ACTIONS = [
   { key: "schedule", label: "Schedule Pickup", to: "/pickups/new", icon: CalendarPlus, available: true, accent: "blue" },
   { key: "marketplace", label: "Marketplace", to: "/marketplace", icon: Store, available: true, accent: "purple" },
   { key: "create-campaign", label: "Create Campaign", to: "/campaigns/new", icon: Megaphone, available: true, accent: "orange" },
-  { key: "impact", label: "View Impact", to: "/rewards", icon: BarChart3, available: false, accent: "teal" },
+  { key: "impact", label: "View Impact", to: "/dashboard", icon: BarChart3, available: true, accent: "teal" },
 ];
 
 const COLLECTOR_ACTIONS = [
   { key: "jobs", label: "Today's Jobs", to: "/jobs", icon: ClipboardList, available: true, accent: "blue" },
   { key: "scan", label: "Scan Scrap", to: "/scan", icon: ScanLine, available: true, accent: "purple" },
   { key: "listings", label: "My Listings", to: "/marketplace/listings", icon: Package, available: true, accent: "orange" },
-  { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: false, accent: "teal" },
+  { key: "inventory", label: "Inventory", to: "/inventory", icon: Boxes, available: true, accent: "teal" },
 ];
 
 export const getQuickActions = (role) => {

@@ -8,6 +8,7 @@ const CampaignParticipant = require("../models/CampaignParticipant");
 const ScrapRate = require("../models/ScrapRate");
 const Notification = require("../models/Notification");
 const AdminAuditLog = require("../models/AdminAuditLog");
+const Redemption = require("../models/Redemption");
 const { CO2_PER_KG } = require("../services/ecoScoreService");
 const { toTitleCase } = require("../utils/textNormalize");
 const { notify } = require("../services/notificationService");
@@ -1701,6 +1702,137 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/admin/redemptions?status=issued|fulfilled|cancelled
+ *
+ * The tracking mechanism for rewards with no automated effect (donations,
+ * mainly — see models/Reward.js's `effect` field): a redemption sits here
+ * as "issued" until an admin actually does the real-world thing (plants the
+ * tree, sponsors the drive) and marks it fulfilled below. Automated-effect
+ * redemptions (marketplace_discount, pickup_fee_waiver) also show up here
+ * once spent, purely for visibility — they're already self-fulfilling by
+ * the time they reach "fulfilled", nothing for an admin to action.
+ */
+const listRedemptions = async (req, res) => {
+  try {
+    const { status, effect, page = 1, limit = 25 } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+    if (effect) filter.effect = effect;
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(Math.max(1, parseInt(limit)), 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [redemptions, total, statusCountsAgg] = await Promise.all([
+      Redemption.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate("userId", "name email role")
+        .lean(),
+      Redemption.countDocuments(filter),
+      Redemption.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+    ]);
+
+    const statusCounts = {};
+    for (const row of statusCountsAgg) statusCounts[row._id] = row.count;
+
+    return res.status(200).json({
+      success: true,
+      message: "Redemptions retrieved",
+      data: {
+        redemptions: redemptions.map((r) => ({
+          id: r._id.toString(),
+          user: r.userId ? { id: r.userId._id.toString(), name: r.userId.name, email: r.userId.email } : null,
+          rewardName: r.rewardName,
+          pointsSpent: r.pointsSpent,
+          effect: r.effect,
+          effectValue: r.effectValue,
+          code: r.code,
+          status: r.status,
+          createdAt: r.createdAt,
+        })),
+        statusCounts,
+        pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+      },
+    });
+  } catch (error) {
+    console.error("List redemptions error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while loading redemptions.",
+      error: { code: "INTERNAL_ERROR" },
+    });
+  }
+};
+
+/**
+ * PATCH /api/admin/redemptions/:id/status   body: { status: "fulfilled" | "cancelled" }
+ *
+ * Manual fulfilment tracking for effect:"none" rewards (donations) — an
+ * admin arranges the real-world thing externally, then marks it here.
+ *
+ * NOTE ON CANCELLING: this does NOT refund the spent points automatically.
+ * A wrongly-issued redemption is rare enough, and refund logic subtle
+ * enough (was this points-earning event itself since reversed too?), that
+ * an explicit manual points adjustment by the admin is the safer path than
+ * an automatic one baked into this endpoint.
+ */
+const updateRedemptionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(404).json({ success: false, message: "Redemption not found.", error: { code: "NOT_FOUND" } });
+    }
+    if (!["fulfilled", "cancelled"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "status must be fulfilled or cancelled.",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+
+    // Only a currently-"issued" redemption can be actioned here — a
+    // fulfilled/cancelled one is a closed record, not editable in place.
+    const redemption = await Redemption.findOneAndUpdate(
+      { _id: id, status: "issued" },
+      { $set: { status } },
+      { new: true }
+    );
+    if (!redemption) {
+      return res.status(404).json({
+        success: false,
+        message: "Redemption not found, or it's already been actioned.",
+        error: { code: "NOT_FOUND" },
+      });
+    }
+
+    await logAudit({
+      adminId: req.user._id,
+      action: "redemption_status_updated",
+      targetType: "redemption",
+      targetId: redemption._id,
+      metadata: { rewardName: redemption.rewardName, code: redemption.code, status },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Redemption marked ${status}`,
+      data: { id: redemption._id.toString(), status: redemption.status },
+    });
+  } catch (error) {
+    console.error("Update redemption status error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while updating this redemption.",
+      error: { code: "INTERNAL_ERROR" },
+    });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getPlatformActivity,
@@ -1723,4 +1855,6 @@ module.exports = {
   sendNotification,
   listPlatformNotifications,
   getAuditLogs,
+  listRedemptions,
+  updateRedemptionStatus,
 };

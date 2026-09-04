@@ -32,12 +32,13 @@ import api from "@/services/api";
  * @param {{ productId: string, quantity: number, fulfillmentMethod: "pickup"|"delivery", deliveryAddress?: object }} payload
  * @returns {Promise<{ orderId: string, amount: number, currency: string, keyId: string }>}
  */
-export const createCheckoutOrder = async ({ productId, quantity, fulfillmentMethod, deliveryAddress }) => {
+export const createCheckoutOrder = async ({ productId, quantity, fulfillmentMethod, deliveryAddress, redemptionCode }) => {
   const response = await api.post("/marketplace/orders/checkout-order", {
     productId,
     quantity,
     fulfillmentMethod,
     deliveryAddress,
+    redemptionCode,
   });
   return response.data.data;
 };
@@ -54,6 +55,7 @@ export const createOrder = async ({
   quantity,
   fulfillmentMethod,
   deliveryAddress,
+  redemptionCode,
   razorpayOrderId,
   razorpayPaymentId,
   razorpaySignature,
@@ -63,6 +65,7 @@ export const createOrder = async ({
     quantity,
     fulfillmentMethod,
     deliveryAddress,
+    redemptionCode,
     razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature,

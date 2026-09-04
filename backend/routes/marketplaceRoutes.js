@@ -41,6 +41,7 @@ router.get("/products", productController.listProducts);
 /* ─── Seller tools — collector only (declared before /products/:id) ──────── */
 router.get("/my-stats", sellerOnly, productController.getMyMarketplaceStats);
 router.get("/eligible-pickups", sellerOnly, productController.listEligiblePickups);
+router.get("/inventory", sellerOnly, productController.getInventory);
 
 /* ─── Listing CRUD — collector only, ownership re-checked inside ─────────── */
 router.post("/products", sellerOnly, productController.createProduct);

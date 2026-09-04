@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Camera, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -102,6 +103,10 @@ const ListingForm = ({ product, onSubmit, submitting, submitLabel = "Publish lis
   const [savedImages, setSavedImages] = useState(product?.images ?? []);
   const [uploading, setUploading] = useState(false);
   const [eligiblePickups, setEligiblePickups] = useState([]);
+  // Inventory's "List this" links arrive as ?pickupId=<id> — the source
+  // pickup is preselected below once the eligible list has loaded.
+  const [searchParams] = useSearchParams();
+  const presetPickupId = searchParams.get("pickupId");
   const fileInputRef = useRef(null);
 
   const patch = (fields) => setForm((prev) => ({ ...prev, ...fields }));
@@ -114,7 +119,16 @@ const ListingForm = ({ product, onSubmit, submitting, submitLabel = "Publish lis
     productService
       .getEligiblePickups()
       .then((pickups) => {
-        if (!cancelled) setEligiblePickups(pickups);
+        if (cancelled) return;
+        setEligiblePickups(pickups);
+        const preset = presetPickupId && pickups.find((p) => p.id === presetPickupId);
+        if (preset) {
+          setForm((prev) => ({
+            ...prev,
+            sourcePickupId: preset.id,
+            ...(preset.suggestedCategory && !prev.category ? { category: preset.suggestedCategory } : {}),
+          }));
+        }
       })
       .catch(() => {
         // Non-critical: the form is fully usable without provenance.
@@ -122,7 +136,7 @@ const ListingForm = ({ product, onSubmit, submitting, submitLabel = "Publish lis
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [presetPickupId]);
 
   // Release object URLs when local previews are dropped, so a long editing
   // session doesn't leak blobs.

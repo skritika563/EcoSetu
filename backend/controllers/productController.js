@@ -805,6 +805,93 @@ const listEligiblePickups = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/marketplace/inventory — a collector's material stock.
+ *
+ * "Inventory" here is derived, not a separate tracked collection: what a
+ * collector holds is simply everything they've collected on completed
+ * pickups, minus what they've already turned into marketplace listings.
+ * Both halves are real data (Pickup.verifiedCategories weights, and
+ * Product.weightKg / Product.sourcePickup), so nothing here is estimated
+ * or invented — a listing created from a pickup carries `sourcePickup`,
+ * which is what lets "not yet listed" be answered exactly rather than
+ * guessed.
+ */
+const getInventory = async (req, res) => {
+  try {
+    const [pickups, products] = await Promise.all([
+      Pickup.find({ collectorId: req.user._id, status: "completed" })
+        .sort({ completedAt: -1 })
+        .select("_id completedAt verifiedCategories totalAmount")
+        .lean(),
+      Product.find({ sellerId: req.user._id })
+        .select("_id status weightKg sourcePickup")
+        .lean(),
+    ]);
+
+    // Collected weight per scrap category, across every completed pickup.
+    const collectedByCategory = new Map();
+    let totalCollectedKg = 0;
+    for (const p of pickups) {
+      for (const c of p.verifiedCategories ?? []) {
+        const kg = c.weightKg ?? 0;
+        collectedByCategory.set(c.category, (collectedByCategory.get(c.category) ?? 0) + kg);
+        totalCollectedKg += kg;
+      }
+    }
+
+    const listedPickupIds = new Set(
+      products.filter((p) => p.sourcePickup).map((p) => p.sourcePickup.toString())
+    );
+    const totalListedKg = products.reduce((sum, p) => sum + (p.weightKg ?? 0), 0);
+
+    // Completed pickups that haven't been turned into a listing yet — the
+    // actionable half of this page ("you're sitting on unlisted stock").
+    const unlistedPickups = pickups
+      .filter((p) => !listedPickupIds.has(p._id.toString()))
+      .slice(0, 20)
+      .map((p) => ({
+        id: p._id.toString(),
+        completedAt: p.completedAt,
+        categories: (p.verifiedCategories ?? []).map((c) => c.category),
+        totalWeightKg:
+          Math.round((p.verifiedCategories ?? []).reduce((sum, c) => sum + (c.weightKg ?? 0), 0) * 10) / 10,
+        suggestedCategory: suggestCategoryFromPickup(p.verifiedCategories),
+      }));
+
+    const round1 = (n) => Math.round(n * 10) / 10;
+
+    return res.status(200).json({
+      success: true,
+      message: "Inventory retrieved",
+      data: {
+        summary: {
+          totalCollectedKg: round1(totalCollectedKg),
+          totalListedKg: round1(totalListedKg),
+          // Floored at 0: a collector can list material by weight without a
+          // sourcePickup (hand-entered), which could otherwise read negative.
+          unlistedKg: round1(Math.max(totalCollectedKg - totalListedKg, 0)),
+          completedPickups: pickups.length,
+          activeListings: products.filter((p) => p.status === "active").length,
+          soldListings: products.filter((p) => p.status === "sold").length,
+          unlistedPickupCount: pickups.length - listedPickupIds.size,
+        },
+        byCategory: [...collectedByCategory.entries()]
+          .map(([category, kg]) => ({ category, collectedKg: round1(kg) }))
+          .sort((a, b) => b.collectedKg - a.collectedKg),
+        unlistedPickups,
+      },
+    });
+  } catch (error) {
+    console.error("Get inventory error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while loading your inventory.",
+      error: { code: "INTERNAL_ERROR" },
+    });
+  }
+};
+
 module.exports = {
   listProducts,
   getProductSections,
@@ -819,4 +906,5 @@ module.exports = {
   getSellerProfile,
   getMyMarketplaceStats,
   listEligiblePickups,
+  getInventory,
 };

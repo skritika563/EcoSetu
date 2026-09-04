@@ -25,6 +25,7 @@ const ADMIN_ACTIONS = [
   "campaign_cancelled",
   "notification_sent",
   "pickup_cancelled",
+  "redemption_status_updated",
 ];
 
 const adminAuditLogSchema = new mongoose.Schema(
@@ -42,7 +43,7 @@ const adminAuditLogSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ["user", "pickup", "product", "campaign", "scrap_rate", "notification"],
+      enum: ["user", "pickup", "product", "campaign", "scrap_rate", "notification", "redemption"],
       required: true,
     },
     targetId: {

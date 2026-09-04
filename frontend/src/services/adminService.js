@@ -132,3 +132,15 @@ export const getAuditLogs = async (params = {}) => {
   const response = await api.get("/admin/audit-logs", { params });
   return response.data.data;
 };
+
+// ── Reward Redemptions ─────────────────────────────────────────────────────
+
+export const listRedemptions = async (params = {}) => {
+  const response = await api.get("/admin/redemptions", { params });
+  return response.data.data;
+};
+
+export const updateRedemptionStatus = async (id, status) => {
+  const response = await api.patch(`/admin/redemptions/${id}/status`, { status });
+  return response.data.data;
+};

@@ -20,6 +20,7 @@ const { initializeRazorpay } = require("./config/razorpay");
 const seedScrapRates = require("./scripts/seedScrapRates");
 const seedMarketplace = require("./scripts/seedMarketplace");
 const seedCampaigns = require("./scripts/seedCampaigns");
+const seedRewards = require("./scripts/seedRewards");
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,9 @@ const startServer = async () => {
 
     // 1d. Seed starter campaigns if none exist
     await seedCampaigns();
+
+    // 1e. Seed the Eco Points reward catalogue
+    await seedRewards();
 
     // 2. Initialize Firebase Admin SDK
     initializeFirebase();

@@ -58,4 +58,10 @@ router.get("/notifications", adminController.listPlatformNotifications);
 // ── Audit Logs ───────────────────────────────────────────────────────────────
 router.get("/audit-logs", adminController.getAuditLogs);
 
+// ── Reward Redemptions ───────────────────────────────────────────────────────
+// Manual fulfilment tracking for rewards with no automated effect
+// (donations, mainly — see models/Reward.js's `effect` field).
+router.get("/redemptions", adminController.listRedemptions);
+router.patch("/redemptions/:id/status", adminController.updateRedemptionStatus);
+
 module.exports = router;

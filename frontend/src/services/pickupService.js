@@ -60,6 +60,10 @@ export const createPickup = async ({
   razorpayOrderId = null,
   razorpayPaymentId = null,
   razorpaySignature = null,
+  // Eco Points redemption code for a "Free Priority Pickup"-type reward —
+  // when present on an instant pickup, replaces the Razorpay payment
+  // entirely (see BookPickupPage.jsx's handleConfirm).
+  redemptionCode = null,
 }) => {
   const response = await api.post("/pickups", {
     pickupType,
@@ -77,6 +81,7 @@ export const createPickup = async ({
     razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature,
+    redemptionCode,
   });
   return response.data.data;
 };

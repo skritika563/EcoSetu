@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarClock, CheckCircle2, Construction, MapPin, Sparkles } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, Construction, Gift, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useShake } from "@/hooks/useShake";
@@ -37,6 +37,8 @@ import EmptyState from "@/components/common/EmptyState";
 import { ListSkeleton } from "@/components/common/SectionSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import StepIndicator from "@/components/shared/StepIndicator";
 
 import ScrapInfoStep from "@/components/pickups/ScrapInfoStep";
@@ -77,6 +79,10 @@ const BookPickupPage = () => {
   const [pickupType, setPickupType] = useState("scheduled");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlotId, setSelectedSlotId] = useState("");
+  // Eco Points "Free Priority Pickup" reward code — only meaningful for
+  // pickupType === "instant". A valid code replaces the Razorpay payment
+  // step entirely rather than discounting it (see handleConfirm).
+  const [redemptionCode, setRedemptionCode] = useState("");
 
   // Addresses load asynchronously now — pick the default (or first) one the
   // first time the list arrives, without stomping a choice the user already made.
@@ -225,8 +231,12 @@ const BookPickupPage = () => {
     // the hope that payment will follow. If this fails or the customer
     // backs out of Checkout, nothing has been booked yet — same as any
     // other failed step in this form.
+    // A valid reward code skips the whole Razorpay step — there is nothing
+    // to charge ₹0 for. It's sent to createPickup below instead of any
+    // payment proof; the server does the real validation and consumes it.
+    const trimmedCode = redemptionCode.trim();
     let paymentProof = {};
-    if (pickupType === "instant") {
+    if (pickupType === "instant" && !trimmedCode) {
       try {
         paymentProof = await collectInstantFeePayment();
       } catch (err) {
@@ -256,6 +266,7 @@ const BookPickupPage = () => {
         aiPrediction: scrapInfo.aiPrediction,
         imageCount: scrapInfo.images.length,
         notes: scrapInfo.notes.trim() || null,
+        redemptionCode: pickupType === "instant" && trimmedCode ? trimmedCode : undefined,
         ...paymentProof,
       });
     } catch (err) {
@@ -264,8 +275,9 @@ const BookPickupPage = () => {
       // (booking validation failing right after a successful charge), and
       // without a "resume booking with this payment" flow the honest thing
       // is to say so plainly and point at real support, not silently retry
-      // a fresh charge.
-      if (pickupType === "instant") {
+      // a fresh charge. Doesn't apply when a reward code was used instead —
+      // no payment ever happened, so there is nothing to "went through".
+      if (pickupType === "instant" && paymentProof.razorpayPaymentId) {
         toast.error(
           `Your payment went through, but we couldn't finish booking the pickup: ${err.message || "please try again"}. Contact support with payment ID ${paymentProof.razorpayPaymentId} if this persists.`,
           { duration: 10000 }
@@ -423,6 +435,8 @@ const BookPickupPage = () => {
       selectedSlotLabel={selectedSlotLabel}
       serviceCharge={serviceCharge}
       estimate={estimate}
+      redemptionCode={redemptionCode}
+      onRedemptionCodeChange={setRedemptionCode}
     />,
   ];
 
@@ -487,11 +501,13 @@ const BookPickupPage = () => {
                 ) : (
                   <Button className="w-full font-semibold" onClick={handleConfirm} disabled={submitting}>
                     {submitting
-                      ? pickupType === "instant"
+                      ? pickupType === "instant" && !redemptionCode.trim()
                         ? "Processing payment…"
                         : "Confirming…"
                       : pickupType === "instant"
-                        ? `Pay ${formatCurrency(serviceCharge)} & Confirm`
+                        ? redemptionCode.trim()
+                          ? "Confirm Pickup (fee waived)"
+                          : `Pay ${formatCurrency(serviceCharge)} & Confirm`
                         : "Confirm Pickup"}
                   </Button>
                 )}
@@ -505,7 +521,17 @@ const BookPickupPage = () => {
 };
 
 /* ─── Review step ────────────────────────────────────────────────────────── */
-const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlotLabel, serviceCharge, estimate }) => (
+const ReviewStep = ({
+  scrapInfo,
+  address,
+  pickupType,
+  selectedDate,
+  selectedSlotLabel,
+  serviceCharge,
+  estimate,
+  redemptionCode,
+  onRedemptionCodeChange,
+}) => (
   <div className="space-y-4">
     <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/25 p-3.5">
       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -599,14 +625,41 @@ const ReviewStep = ({ scrapInfo, address, pickupType, selectedDate, selectedSlot
       </p>
     )}
 
-    {serviceCharge > 0 && (
-      <>
-        <PriceBreakdownTable lines={[]} totalAmount={0} serviceCharge={serviceCharge} mode="estimate" />
-        <p className="text-xs text-muted-foreground">
-          You'll be asked to pay this now, via Razorpay, to confirm the instant pickup.
-        </p>
-      </>
+    {pickupType === "instant" && (
+      <div className="space-y-1.5">
+        <Label htmlFor="pickup-reward-code" className="flex items-center gap-1.5">
+          <Gift className="h-3.5 w-3.5 text-primary" />
+          Have a "Free Priority Pickup" reward code?
+        </Label>
+        <Input
+          id="pickup-reward-code"
+          placeholder="ECO-XXXX-XXXX (optional)"
+          value={redemptionCode}
+          onChange={(e) => onRedemptionCodeChange(e.target.value.toUpperCase())}
+          className="font-mono uppercase"
+        />
+      </div>
     )}
+
+    {serviceCharge > 0 &&
+      (redemptionCode.trim() ? (
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3.5">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
+            <Gift className="h-4 w-4" />
+            Platform fee waived
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Your reward code covers the {formatCurrency(serviceCharge)} instant-pickup fee — no payment needed.
+          </p>
+        </div>
+      ) : (
+        <>
+          <PriceBreakdownTable lines={[]} totalAmount={0} serviceCharge={serviceCharge} mode="estimate" />
+          <p className="text-xs text-muted-foreground">
+            You'll be asked to pay this now, via Razorpay, to confirm the instant pickup.
+          </p>
+        </>
+      ))}
   </div>
 );
 

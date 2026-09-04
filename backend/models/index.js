@@ -40,6 +40,8 @@ const Certificate = require("./Certificate");
 const AdminAuditLog = require("./AdminAuditLog");
 const Conversation = require("./Conversation");
 const Message = require("./Message");
+const Reward = require("./Reward");
+const Redemption = require("./Redemption");
 
 module.exports = {
   User,
@@ -55,5 +57,7 @@ module.exports = {
   AdminAuditLog,
   Conversation,
   Message,
+  Reward,
+  Redemption,
 };
 

@@ -39,7 +39,7 @@ export const getSustainabilityDashboard = async (role, { empty = false } = {}) =
       summary: {
         year: new Date().getFullYear(), scrapRecycledKg: 0, co2SavedKg: 0, ecoPoints: 0,
         activities: 0, pickups: 0, reuse: 0, campaigns: 0, totalScore: 0, activeMonths: 0,
-        activeDays: 0, treeStage: 0, plasticRecycled: 0,
+        activeDays: 0, treeStage: 0, plasticRecycled: 0, treesPlanted: 0,
       },
       months: Array.from({ length: 12 }, () => ({
         month: "", shortMonth: "", activities: 0, pickups: 0, reuse: 0, campaigns: 0,
@@ -76,6 +76,10 @@ export const getSustainabilityDashboard = async (role, { empty = false } = {}) =
     activeDays: Math.round(apiSummary.activeMonths * 5.9), // estimated — no daily log yet, see streak note
     treeStage: getTreeStage(apiSummary.totalScore),
     plasticRecycled: categories.find((c) => c.category === "plastic")?.weightKg ?? 0,
+    // Real, admin-fulfilled tree-donation redemptions — separate from
+    // `treeStage` above (that's the gamified growth-stage visual driven by
+    // pickup activity score, not a literal tree count).
+    treesPlanted: apiSummary.treesPlanted ?? 0,
   };
 
   const streak = STREAKS[role] ?? STREAKS.household;
