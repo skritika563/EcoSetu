@@ -634,6 +634,13 @@ const updateJobStatus = async (req, res) => {
     const note = status === "on_the_way" ? "Collector started navigation" : "Verifying scrap on site";
     pickup.status = status;
     pickup.statusHistory.push({ status, at: new Date(), note, changedBy: req.user._id });
+    // Live tracking only makes sense while actually en route — clear any
+    // last-known pin the moment the job moves past "on_the_way" so a
+    // customer looking at a completed/verifying pickup never sees a stale
+    // "collector is here" marker frozen at wherever they last reported from.
+    if (status === "in_progress") {
+      pickup.collectorLocation = { lat: null, lng: null, updatedAt: null };
+    }
     await pickup.save();
 
     if (status === "on_the_way") {
@@ -801,6 +808,63 @@ const verifyPickup = async (req, res) => {
 };
 
 /**
+ * PATCH /api/pickups/:id/location
+ * Role: collector, and only the assigned one. Body: { lat, lng }.
+ *
+ * Pushed periodically (throttled client-side — see
+ * useCollectorLocationBroadcast.js) while the collector's browser has this
+ * job's "I'm on my way" navigation screen open. Only accepted while the job
+ * is actually "on_the_way" — a stray update for a job the collector isn't
+ * currently travelling to (already started, already finished, or not yet
+ * accepted) is silently rejected rather than corrupting a status the
+ * customer isn't even watching for movement on.
+ *
+ * No notification here — this fires every ~20s and would spam
+ * notificationService for no reason; the customer's Pickup Details page
+ * picks up the new position on its own existing background poll.
+ */
+const updateCollectorLocation = async (req, res) => {
+  try {
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid lat and lng are required.",
+        error: { code: "VALIDATION_ERROR" },
+      });
+    }
+
+    // Scoped directly into the query (not fetch-then-check) so a collector
+    // can never even attempt to move another collector's job's pin, and a
+    // late-arriving update after the job moved past "on_the_way" is a no-op
+    // rather than a race with updateJobStatus's own reset above.
+    const pickup = await Pickup.findOneAndUpdate(
+      { _id: req.params.id, collectorId: req.user._id, status: "on_the_way" },
+      { $set: { collectorLocation: { lat, lng, updatedAt: new Date() } } },
+      { new: true }
+    );
+
+    if (!pickup) {
+      return res.status(404).json({
+        success: false,
+        message: "This job isn't currently trackable.",
+        error: { code: "NOT_FOUND" },
+      });
+    }
+
+    return res.status(200).json({ success: true, message: "Location updated", data: null });
+  } catch (error) {
+    console.error("Update collector location error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error while updating your location.",
+      error: { code: "INTERNAL_ERROR" },
+    });
+  }
+};
+
+/**
  * POST /api/pickups/:id/rate
  * Role: household, organization — only the owner, only after completion.
  */
@@ -852,6 +916,7 @@ module.exports = {
   cancelPickup,
   acceptJob,
   updateJobStatus,
+  updateCollectorLocation,
   verifyPickup,
   ratePickup,
 };

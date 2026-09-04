@@ -57,7 +57,7 @@ const ProductDetailsPage = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { product, loading, error, refetch, applyProduct } = useProduct(productId);
-  const { addresses, addAddress } = useAddresses();
+  const { addresses, addAddress, updateAddress } = useAddresses();
   const { user } = useAuth();
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -413,6 +413,7 @@ const ProductDetailsPage = () => {
         product={product}
         addresses={addresses}
         onAddAddress={addAddress}
+        onEditAddress={updateAddress}
         onConfirm={handlePlaceOrder}
         submitting={placing}
       />

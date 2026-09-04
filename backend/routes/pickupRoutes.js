@@ -52,6 +52,9 @@ router.put("/:id/accept", authorizeRoles("collector"), pickupController.acceptJo
 // PUT /api/pickups/:id/status — collector moves their job forward
 router.put("/:id/status", authorizeRoles("collector"), pickupController.updateJobStatus);
 
+// PATCH /api/pickups/:id/location — collector broadcasts their live position while en route
+router.patch("/:id/location", authorizeRoles("collector"), pickupController.updateCollectorLocation);
+
 // PUT /api/pickups/:id/verify — collector's final classification + completion
 router.put("/:id/verify", authorizeRoles("collector"), pickupController.verifyPickup);
 

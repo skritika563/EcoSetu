@@ -74,7 +74,7 @@ const BookPickupPage = () => {
   const { shake, triggerShake } = useShake();
 
   const [scrapInfo, setScrapInfo] = useState(EMPTY_SCRAP_INFO);
-  const { addresses, loading: addressesLoading, addAddress } = useAddresses();
+  const { addresses, loading: addressesLoading, addAddress, updateAddress } = useAddresses();
   const [addressId, setAddressId] = useState(null);
   const [pickupType, setPickupType] = useState("scheduled");
   const [selectedDate, setSelectedDate] = useState("");
@@ -409,6 +409,7 @@ const BookPickupPage = () => {
           const created = await addAddress(address);
           setAddressId(created.id);
         }}
+        onEditAddress={updateAddress}
       />
     ),
     <TimeSlotPicker

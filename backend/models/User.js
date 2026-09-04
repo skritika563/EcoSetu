@@ -71,6 +71,15 @@ const savedAddressSchema = new mongoose.Schema({
     },
   },
   isDefault: { type: Boolean, default: false },
+  // Set either by reverse-geocoding a map pin drop, or by the forward
+  // geocode a pincode lookup resolves to (see locationService.js) — null for
+  // any address saved before this existed, or typed in without ever
+  // touching the map. Optional everywhere it's read (Pickup's own
+  // pickupAddress.coordinates already tolerated this before addresses did).
+  coordinates: {
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
+  },
 });
 
 const userSchema = new mongoose.Schema(

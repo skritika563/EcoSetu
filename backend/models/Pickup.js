@@ -116,6 +116,21 @@ const pickupSchema = new mongoose.Schema(
     status: { type: String, enum: STATUSES, default: "pending", index: true },
     statusHistory: { type: [statusHistorySchema], default: [] },
 
+    // ── Live tracking ───────────────────────────────────────────────────────
+    // The assigned collector's last-reported position, pushed via PATCH
+    // /api/pickups/:id/location while they're "on_the_way" (see
+    // pickupController.updateCollectorLocation). Read by the customer's
+    // Pickup Details page through the SAME background poll it already runs
+    // for status changes (usePickupDetails.js) — no separate tracking
+    // endpoint or websocket needed, this just rides along. Reset to null
+    // whenever a job moves off "on_the_way" (see updateJobStatus) so a
+    // completed/verifying pickup never shows a stale last-known pin.
+    collectorLocation: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      updatedAt: { type: Date, default: null },
+    },
+
     // ── Scheduling ──────────────────────────────────────────────────────────
     pickupAddress: { type: addressSubSchema, required: true },
     pickupDate: { type: Date, required: true },

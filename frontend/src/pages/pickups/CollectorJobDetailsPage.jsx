@@ -15,13 +15,13 @@ import {
   CalendarClock,
   Construction,
   MapPin,
-  Navigation,
   Phone,
   StickyNote,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { usePickupDetails } from "@/hooks/usePickupDetails";
+import { useCollectorLocationBroadcast } from "@/hooks/useCollectorLocationBroadcast";
 import { getCategory } from "@/config/domain";
 import { getJobPrimaryAction } from "@/config/pickups";
 import { formatFriendlyDate, formatWeight, getInitials } from "@/lib/format";
@@ -48,6 +48,7 @@ import PickupStatusTimeline from "@/components/pickups/PickupStatusTimeline";
 import PickupImageGallery from "@/components/pickups/PickupImageGallery";
 import ScrapVerificationForm from "@/components/pickups/ScrapVerificationForm";
 import ReceiptView from "@/components/pickups/ReceiptView";
+import CollectorNavigationPanel from "@/components/pickups/CollectorNavigationPanel";
 
 const ReportIssueDialog = ({ open, onOpenChange, onConfirm, submitting }) => {
   const [reason, setReason] = useState("");
@@ -107,6 +108,10 @@ const CollectorJobDetailsPage = () => {
   const { role } = useAuth();
   const { pickup: job, loading, error, actionPending, refetch, applyUpdate, actions } = usePickupDetails(jobId);
   const [issueOpen, setIssueOpen] = useState(false);
+  // Only actually watches/broadcasts once a job is loaded AND "on_the_way" —
+  // safe to call unconditionally before this component's early returns below
+  // since it no-ops on a null id.
+  const { position: myLivePosition } = useCollectorLocationBroadcast(job?.id, job?.status === "on_the_way");
 
   if (role === "admin") {
     return (
@@ -291,13 +296,9 @@ const CollectorJobDetailsPage = () => {
               )}
 
               {primaryAction === "navigate" && (
-                <div className="space-y-2">
-                  <Button className="w-full" onClick={() => notifyComingSoon("Turn-by-turn navigation")}>
-                    <Navigation className="mr-1.5 h-4 w-4" />
-                    Open Navigation
-                  </Button>
+                <div className="space-y-3">
+                  <CollectorNavigationPanel destination={job.pickupAddress?.coordinates} liveMyPosition={null} />
                   <Button
-                    variant="outline"
                     className="w-full"
                     disabled={actionPending}
                     onClick={async () => {
@@ -314,19 +315,25 @@ const CollectorJobDetailsPage = () => {
               )}
 
               {primaryAction === "start" && (
-                <Button
-                  className="w-full"
-                  disabled={actionPending}
-                  onClick={async () => {
-                    try {
-                      await actions.startPickup();
-                    } catch (err) {
-                      toast.error(err.message || "Couldn't start this pickup.");
-                    }
-                  }}
-                >
-                  {actionPending ? "Starting…" : "Start Pickup"}
-                </Button>
+                <div className="space-y-3">
+                  <CollectorNavigationPanel
+                    destination={job.pickupAddress?.coordinates}
+                    liveMyPosition={myLivePosition}
+                  />
+                  <Button
+                    className="w-full"
+                    disabled={actionPending}
+                    onClick={async () => {
+                      try {
+                        await actions.startPickup();
+                      } catch (err) {
+                        toast.error(err.message || "Couldn't start this pickup.");
+                      }
+                    }}
+                  >
+                    {actionPending ? "Starting…" : "Start Pickup"}
+                  </Button>
+                </div>
               )}
 
               {primaryAction === "verify" && (

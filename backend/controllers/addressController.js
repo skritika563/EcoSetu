@@ -30,7 +30,18 @@ const serializeAddress = (addr) => ({
   landmark: addr.landmark,
   contactPhone: addr.contactPhone,
   isDefault: addr.isDefault,
+  coordinates:
+    addr.coordinates?.lat != null && addr.coordinates?.lng != null
+      ? { lat: addr.coordinates.lat, lng: addr.coordinates.lng }
+      : null,
 });
+
+/** Accepts either a bare {lat, lng} or null/undefined — never trusts partial coordinates. */
+const normalizeCoordinates = (coordinates) => {
+  const lat = Number(coordinates?.lat);
+  const lng = Number(coordinates?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+};
 
 /** GET /api/addresses */
 const listAddresses = async (req, res) => {
@@ -44,7 +55,7 @@ const listAddresses = async (req, res) => {
 /** POST /api/addresses */
 const createAddress = async (req, res) => {
   try {
-    const { label, line, city, state, pincode, landmark, contactPhone, isDefault } = req.body;
+    const { label, line, city, state, pincode, landmark, contactPhone, isDefault, coordinates } = req.body;
 
     if (!label?.trim() || !line?.trim() || !city?.trim()) {
       return res.status(400).json({
@@ -73,6 +84,7 @@ const createAddress = async (req, res) => {
       landmark: landmark?.trim() || null,
       contactPhone: contactPhone?.trim() || null,
       isDefault: !!isDefault || isFirst,
+      coordinates: normalizeCoordinates(coordinates),
     });
 
     await user.save();
@@ -110,7 +122,7 @@ const updateAddress = async (req, res) => {
       return res.status(404).json({ success: false, message: "Address not found.", error: { code: "NOT_FOUND" } });
     }
 
-    const { label, line, city, state, pincode, landmark, contactPhone, isDefault } = req.body;
+    const { label, line, city, state, pincode, landmark, contactPhone, isDefault, coordinates } = req.body;
     if (label !== undefined) address.label = label.trim();
     if (line !== undefined) address.line = line.trim();
     if (city !== undefined) address.city = city.trim();
@@ -118,6 +130,7 @@ const updateAddress = async (req, res) => {
     if (pincode !== undefined) address.pincode = pincode?.trim() || null;
     if (landmark !== undefined) address.landmark = landmark?.trim() || null;
     if (contactPhone !== undefined) address.contactPhone = contactPhone?.trim() || null;
+    if (coordinates !== undefined) address.coordinates = normalizeCoordinates(coordinates);
     if (isDefault) {
       user.savedAddresses.forEach((a) => {
         a.isDefault = a._id.equals(address._id);

@@ -1,8 +1,14 @@
 /**
  * CollectorInfoPanel — shown on Pickup Details once a collector is en route.
  *
- * Real-time GPS tracking isn't built yet — the map is a clearly-labelled
- * static placeholder, not a live view, per spec.
+ * Live tracking: while the collector's Job Details page has "I'm on my way"
+ * active, it broadcasts their position (useCollectorLocationBroadcast.js →
+ * PATCH /api/pickups/:id/location). This panel doesn't poll for that itself
+ * — `collectorLocation` arrives as a prop because usePickupDetails' existing
+ * 6-second background poll already refetches the whole pickup, and the
+ * serializer now includes collectorLocation on it. Until the collector's
+ * first location update lands, this shows a waiting state rather than a map
+ * with nothing on it.
  */
 
 import { motion, useReducedMotion } from "framer-motion";
@@ -12,8 +18,14 @@ import { notifyComingSoon } from "@/lib/comingSoon";
 import { getInitials } from "@/lib/format";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import MapView from "@/components/map/MapView";
 
-const CollectorInfoPanel = ({ collector, distanceKm, status }) => {
+// See CollectorNavigationPanel.jsx's identical helper for why this can't
+// just be a truthy check — an address's coordinates default, at the DB
+// layer, to {lat: null, lng: null} rather than a clean `null`.
+const hasCoordinates = (point) => point?.lat != null && point?.lng != null;
+
+const CollectorInfoPanel = ({ collector, distanceKm, status, destination, collectorLocation }) => {
   const prefersReducedMotion = useReducedMotion();
   if (!collector) return null;
 
@@ -78,11 +90,22 @@ const CollectorInfoPanel = ({ collector, distanceKm, status }) => {
         <p className="mt-4 rounded-lg bg-primary/5 p-3 text-sm text-foreground">
           Your scrap is being verified and weighed.
         </p>
+      ) : collectorLocation ? (
+        <MapView
+          className="mt-4 h-48"
+          fitToMarkers
+          markers={[
+            ...(hasCoordinates(destination) ? [{ position: [destination.lat, destination.lng], type: "destination" }] : []),
+            { position: [collectorLocation.lat, collectorLocation.lng], type: "collector" },
+          ]}
+        />
       ) : (
         <div className="relative mt-4 overflow-hidden rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center">
           <MapPin className="mx-auto h-6 w-6 text-muted-foreground/60" />
-          <p className="mt-2 text-xs font-medium text-muted-foreground">Map preview — demo data</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground/70">Live GPS tracking is coming soon</p>
+          <p className="mt-2 text-xs font-medium text-muted-foreground">Waiting for your collector's location</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+            The map will appear here once they start sharing their position
+          </p>
         </div>
       )}
     </motion.div>

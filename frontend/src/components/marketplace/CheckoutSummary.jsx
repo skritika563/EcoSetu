@@ -37,7 +37,16 @@ import {
 import AddressPicker from "@/components/pickups/AddressPicker";
 import { cn } from "@/lib/utils";
 
-const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAddress, onConfirm, submitting }) => {
+const CheckoutSummary = ({
+  open,
+  onOpenChange,
+  product,
+  addresses = [],
+  onAddAddress,
+  onEditAddress,
+  onConfirm,
+  submitting,
+}) => {
   const [quantity, setQuantity] = useState(1);
   const [fulfillment, setFulfillment] = useState(product?.fulfillment?.pickup ? "pickup" : "delivery");
   const [addressId, setAddressId] = useState("");
@@ -180,6 +189,7 @@ const CheckoutSummary = ({ open, onOpenChange, product, addresses = [], onAddAdd
                 selectedId={selectedAddress?.id ?? ""}
                 onSelect={setAddressId}
                 onAddAddress={onAddAddress}
+                onEditAddress={onEditAddress}
               />
             </div>
           )}

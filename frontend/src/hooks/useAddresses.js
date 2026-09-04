@@ -48,7 +48,13 @@ export const useAddresses = () => {
     return created;
   }, []);
 
-  return { addresses, loading, error, addAddress, refetch: load };
+  const updateAddress = useCallback(async (id, patch) => {
+    const updated = await addressService.updateAddress(id, patch);
+    setAddresses((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    return updated;
+  }, []);
+
+  return { addresses, loading, error, addAddress, updateAddress, refetch: load };
 };
 
 export default useAddresses;

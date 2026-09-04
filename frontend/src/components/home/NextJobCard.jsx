@@ -89,9 +89,11 @@ const NextJobCard = ({ job }) => {
         <Button asChild>
           <Link to={`/jobs/${job.id}`}>Open Job</Link>
         </Button>
-        <Button variant="outline" onClick={() => notifyComingSoon("Navigation")}>
-          <Navigation className="mr-1.5 h-4 w-4" />
-          Navigate
+        <Button variant="outline" asChild>
+          <Link to={`/jobs/${job.id}`}>
+            <Navigation className="mr-1.5 h-4 w-4" />
+            Navigate
+          </Link>
         </Button>
       </div>
     </motion.section>

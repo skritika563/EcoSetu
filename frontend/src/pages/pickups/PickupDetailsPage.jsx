@@ -125,7 +125,13 @@ const PickupDetailsPage = () => {
           />
 
           {showCollectorPanel && (
-            <CollectorInfoPanel collector={pickup.collector} distanceKm={pickup.distanceKm} status={pickup.status} />
+            <CollectorInfoPanel
+              collector={pickup.collector}
+              distanceKm={pickup.distanceKm}
+              status={pickup.status}
+              destination={pickup.pickupAddress?.coordinates}
+              collectorLocation={pickup.collectorLocation}
+            />
           )}
 
           {isCompleted && (

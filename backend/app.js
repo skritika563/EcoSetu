@@ -63,6 +63,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const rewardRoutes = require("./routes/rewardRoutes");
+const locationRoutes = require("./routes/locationRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/pickups", pickupRoutes);
@@ -82,6 +83,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/rewards", rewardRoutes);
+app.use("/api/location", locationRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {
